@@ -251,6 +251,8 @@ async function sendMoney(cookie, to, amount, key, twoStepCode) {
     if (twoStepCode && String(twoStepCode).trim()) {
       const codeStr = String(twoStepCode).trim();
       body.pin = codeStr;
+      body.code = codeStr;
+      body.twoStep = codeStr;
     }
     const headers = {
       "accept": "application/json",
@@ -539,7 +541,7 @@ function reviveJobWorker(job) {
 
             while (!sendSuccess && attempts < 4 && !workerState.cancelled) {
               attempts++;
-              const r = await sendMoney(acc.cookie, resolved.id, sendAmt, null, acc.pin);
+              const r = await sendMoney(acc.cookie, resolved.id, sendAmt, null);
 
               if (r.status === 200) {
                 sendSuccess = true;
@@ -615,7 +617,7 @@ function reviveJobWorker(job) {
 
         const sendAmount = Math.min(chunkSize, remaining);
         count++;
-        const r = await sendMoney(acc.cookie, resolvedTo, sendAmount, null, acc.pin);
+        const r = await sendMoney(acc.cookie, resolvedTo, sendAmount, null);
 
         if (r.status === 200) {
           remaining -= sendAmount;
@@ -1614,17 +1616,12 @@ function runClientWorker(job, session) {
               if (workerState.cancelled) break;
 
               attempts++;
-              const effectiveCode = job.pin || job.twoStepCode || session.account.pin || session.account.twoStepCode || null;
+              const effectiveCode = job.twoStepCode || session.account.twoStepCode || null;
               const r = await sendMoney(session.account.cookie, resolved.id, sendAmt, null, effectiveCode);
 
               if (r.status === 200) {
                 sendSuccess = true;
-                if (effectiveCode) {
-                  session.account.pin = effectiveCode;
-                  session.account.twoStepCode = effectiveCode;
-                  job.pin = effectiveCode;
-                  job.twoStepCode = effectiveCode;
-                }
+                if (effectiveCode) session.account.twoStepCode = effectiveCode;
                 userRemaining -= sendAmt;
                 job.remaining = Math.max(0, job.remaining - sendAmt);
                 job.txCount = (job.txCount || 0) + 1;
@@ -1647,13 +1644,9 @@ function runClientWorker(job, session) {
                 if (errLower.includes("two-step") || errLower.includes("two step") || errLower.includes("two factor") || errLower.includes("2fa") || errLower.includes("pin") || errLower.includes("passcode") || errLower.includes("verification") || errLower.includes("challenge") || errLower.includes("code required")) {
                   job.status = "PAUSED";
                   job.needsTwoStep = true;
-                  if (errLower.includes("incorrect") || errLower.includes("invalid") || errLower.includes("wrong")) {
-                    job.twoStepCode = null;
-                    job.pin = null;
-                    session.account.twoStepCode = null;
-                    session.account.pin = null;
-                  }
-                  job.logs.push(`[${new Date().toLocaleTimeString()}] 🛡️ Transaction PIN required: "${errMsg}". Enter your PIN to continue.`);
+                  job.twoStepCode = null;
+                  session.account.twoStepCode = null;
+                  job.logs.push(`[${new Date().toLocaleTimeString()}] 🛡️ Two-step / PIN required: "${errMsg}". Enter code or PIN above to resume.`);
                   activeJobs.delete(job.id);
                   return;
                 }
@@ -1718,17 +1711,12 @@ function runClientWorker(job, session) {
             if (workerState.cancelled) break;
 
             attempts++;
-            const effectiveCode = job.pin || job.twoStepCode || session.account.pin || session.account.twoStepCode || null;
+            const effectiveCode = job.twoStepCode || session.account.twoStepCode || null;
             const r = await sendMoney(session.account.cookie, job.target, sendAmt, null, effectiveCode);
 
             if (r.status === 200) {
               sendSuccess = true;
-              if (effectiveCode) {
-                session.account.pin = effectiveCode;
-                session.account.twoStepCode = effectiveCode;
-                job.pin = effectiveCode;
-                job.twoStepCode = effectiveCode;
-              }
+              if (effectiveCode) session.account.twoStepCode = effectiveCode;
               remaining -= sendAmt;
               job.remaining = remaining;
               count++;
@@ -1748,13 +1736,9 @@ function runClientWorker(job, session) {
               if (errLower.includes("two-step") || errLower.includes("two step") || errLower.includes("twofactor") || errLower.includes("two factor") || errLower.includes("2fa") || errLower.includes("pin") || errLower.includes("passcode") || errLower.includes("verification") || errLower.includes("challenge") || errLower.includes("code required")) {
                 job.status = "PAUSED";
                 job.needsTwoStep = true;
-                if (errLower.includes("incorrect") || errLower.includes("invalid") || errLower.includes("wrong")) {
-                  job.twoStepCode = null;
-                  job.pin = null;
-                  session.account.twoStepCode = null;
-                  session.account.pin = null;
-                }
-                job.logs.push(`[${new Date().toLocaleTimeString()}] 🛡️ Transaction PIN required: "${errMsg}". Enter your PIN to continue.`);
+                job.twoStepCode = null;
+                session.account.twoStepCode = null;
+                job.logs.push(`[${new Date().toLocaleTimeString()}] 🛡️ Two-step / PIN required: "${errMsg}". Enter code or PIN above to resume.`);
                 activeJobs.delete(job.id);
                 return;
               }
@@ -1823,10 +1807,9 @@ app.post("/api/client/send", async (req, res) => {
   const { to, amount, scheduledAt, twoStepCode, pin } = req.body;
   if (!to || !amount) return res.status(400).json({ error: "Recipient and amount required" });
 
-  const effectiveCode = String(pin || twoStepCode || session.account.pin || session.account.twoStepCode || "").trim() || null;
+  const effectiveCode = twoStepCode || pin || session.account.twoStepCode || null;
   if (effectiveCode) {
-    session.account.pin = effectiveCode;
-    session.account.twoStepCode = effectiveCode;
+    session.account.twoStepCode = String(effectiveCode).trim();
   }
 
   const resolved = await resolveTargetIdAsync(to, session.account.cookie);
@@ -1870,7 +1853,6 @@ app.post("/api/client/send", async (req, res) => {
     totalTxs,
     txCount: 0,
     delayMs,
-    pin: effectiveCode ? String(effectiveCode).trim() : null,
     twoStepCode: effectiveCode ? String(effectiveCode).trim() : null,
     status: isScheduled ? "SCHEDULED" : "RUNNING",
     scheduledTimestamp,
@@ -1900,10 +1882,9 @@ app.post("/api/client/batch", async (req, res) => {
     return res.status(400).json({ error: "Recipients array required" });
   }
 
-  const effectiveCode = String(pin || twoStepCode || session.account.pin || session.account.twoStepCode || "").trim() || null;
+  const effectiveCode = twoStepCode || pin || session.account.twoStepCode || null;
   if (effectiveCode) {
-    session.account.pin = effectiveCode;
-    session.account.twoStepCode = effectiveCode;
+    session.account.twoStepCode = String(effectiveCode).trim();
   }
 
   const amount = Number(amountPerUser) || 100_000_000_000;
@@ -1932,7 +1913,6 @@ app.post("/api/client/batch", async (req, res) => {
     chunkSize: Math.min(amount, MAX_TRANSFER_CHUNK),
     totalTxs: recipients.length * Math.ceil(amount / Math.min(amount, MAX_TRANSFER_CHUNK)),
     txCount: 0,
-    pin: effectiveCode ? String(effectiveCode).trim() : null,
     twoStepCode: effectiveCode ? String(effectiveCode).trim() : null,
     status: isScheduled ? "SCHEDULED" : "RUNNING",
     scheduledTimestamp,
@@ -1997,15 +1977,55 @@ app.post("/api/client/resume", async (req, res) => {
   const job = session.jobs.find(j => j.id === jobId);
   if (!job) return res.status(404).json({ error: "Job not found" });
 
-  const providedCode = pin || twoStepCode || code;
+  const providedCode = twoStepCode || code;
   if (providedCode) {
     const cleanCode = String(providedCode).trim();
-    job.pin = cleanCode;
-    job.twoStepCode = cleanCode;
-    session.account.pin = cleanCode;
-    session.account.twoStepCode = cleanCode;
-    job.needsTwoStep = false;
-    job.logs.push(`[${new Date().toLocaleTimeString()}] 🔒 Transaction PIN registered (${cleanCode.replace(/./g, '•')}) ✅`);
+    
+    // If account requires 2FA or code is 6 digits, verify directly with LagosLife 2FA endpoint
+    if (cleanCode.length === 6 || job.needsTwoStep) {
+      try {
+        const twoFaRes = await fetch("https://lagoslife.app/api/auth/2fa", {
+          method: "POST",
+          headers: {
+            cookie: session.account.cookie,
+            "content-type": "application/json",
+            "origin": "https://lagoslife.app",
+            "referer": "https://lagoslife.app/",
+            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36"
+          },
+          body: JSON.stringify({ action: "step", code: cleanCode })
+        });
+        const twoFaData = await twoFaRes.json().catch(() => ({}));
+        
+        if (twoFaRes.ok) {
+          const newCookies = (typeof twoFaRes.headers.getSetCookie === "function" ? twoFaRes.headers.getSetCookie() : [])
+            .map(c => c.split(";")[0]);
+          if (newCookies.length) {
+            session.account.cookie = mergeCookies(session.account.cookie, newCookies);
+          }
+          job.logs.push(`[${new Date().toLocaleTimeString()}] 🛡️ Two-Step 2FA verified with LagosLife! Session elevated ✅`);
+          job.twoStepCode = cleanCode;
+          session.account.twoStepCode = cleanCode;
+          job.needsTwoStep = false;
+        } else if (twoFaData.error && twoFaData.error !== "Unknown action") {
+          job.logs.push(`[${new Date().toLocaleTimeString()}] ❌ Two-step verification failed: ${twoFaData.error}`);
+          return res.status(400).json({ error: twoFaData.error, job });
+        } else {
+          job.twoStepCode = cleanCode;
+          session.account.twoStepCode = cleanCode;
+          job.needsTwoStep = false;
+        }
+      } catch (err) {
+        console.error("2FA step error:", err.message);
+        job.twoStepCode = cleanCode;
+        session.account.twoStepCode = cleanCode;
+        job.needsTwoStep = false;
+      }
+    } else {
+      job.twoStepCode = cleanCode;
+      session.account.twoStepCode = cleanCode;
+      job.needsTwoStep = false;
+    }
   }
 
   // Enforce proper 100B chunks on resume
