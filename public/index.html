@@ -161,9 +161,12 @@
           </div>
 
           <div class="form-group" id="group-twostep-single">
-            <label>Two-Step Code (If 2FA enabled on your account)</label>
-            <input type="text" id="single-twostep-input" placeholder="6-digit 2FA code (e.g. 123456)" maxlength="8" class="mono-input" autocomplete="off">
-            <div class="field-hint">LagosLife asks for this once when sending large amounts with 2FA enabled.</div>
+            <label style="display:flex; justify-content:space-between; align-items:center;">
+              <span>Transaction PIN <span style="color:var(--apple-amber); font-weight:700;">(Required)</span></span>
+              <span style="font-size:10px; color:var(--apple-blue); font-weight:500;">🔒 Saved on device</span>
+            </label>
+            <input type="password" id="single-twostep-input" placeholder="Enter your 4 or 6-digit transaction PIN" maxlength="10" class="mono-input" autocomplete="off">
+            <div class="field-hint">LagosLife requires a PIN for all transfers. Enter once and it will automatically apply to all chunks and bulk transfers.</div>
           </div>
 
           <!-- Schedule Transfer Option -->
@@ -213,9 +216,12 @@
           </div>
 
           <div class="form-group" id="group-twostep-bulk">
-            <label>Two-Step Code (If 2FA enabled on your account)</label>
-            <input type="text" id="bulk-twostep-input" placeholder="6-digit 2FA code (e.g. 123456)" maxlength="8" class="mono-input" autocomplete="off">
-            <div class="field-hint">LagosLife asks for this once when sending large amounts with 2FA enabled.</div>
+            <label style="display:flex; justify-content:space-between; align-items:center;">
+              <span>Transaction PIN <span style="color:var(--apple-amber); font-weight:700;">(Required)</span></span>
+              <span style="font-size:10px; color:var(--apple-blue); font-weight:500;">🔒 Saved on device</span>
+            </label>
+            <input type="password" id="bulk-twostep-input" placeholder="Enter your 4 or 6-digit transaction PIN" maxlength="10" class="mono-input" autocomplete="off">
+            <div class="field-hint">LagosLife requires a PIN for all transfers. Your PIN is re-used on every chunk so the entire bulk transfer completes without stopping.</div>
           </div>
 
           <!-- Schedule Bulk Option -->
