@@ -342,6 +342,25 @@ function setupAuthEvents() {
 // Actions (Send & Bulk)
 // ---------------------------------------------------------
 function setupActions() {
+  // Auto-populate and sync saved Transaction PIN across Single & Bulk forms
+  const savedPin = localStorage.getItem("lls_user_pin") || "";
+  if (savedPin) {
+    if ($("single-pin-input")) $("single-pin-input").value = savedPin;
+    if ($("bulk-pin-input")) $("bulk-pin-input").value = savedPin;
+  }
+
+  ["single-pin-input", "bulk-pin-input"].forEach(id => {
+    const el = $(id);
+    if (el) {
+      el.addEventListener("input", () => {
+        const v = el.value.trim();
+        if (v) localStorage.setItem("lls_user_pin", v);
+        const otherId = id === "single-pin-input" ? "bulk-pin-input" : "single-pin-input";
+        if ($(otherId) && $(otherId).value !== v) $(otherId).value = v;
+      });
+    }
+  });
+
   // Recipient Lookup
   $("btn-resolve").addEventListener("click", () => resolveRecipient($("target-input").value));
   $("target-input").addEventListener("blur", () => resolveRecipient($("target-input").value));
@@ -367,14 +386,19 @@ function setupActions() {
       scheduledAt = new Date(targetTs).toISOString();
     }
 
+    const pin = ($("single-pin-input") ? $("single-pin-input").value.trim() : "") || (localStorage.getItem("lls_user_pin") || "");
     const twoStepCode = $("single-twostep-input") ? $("single-twostep-input").value.trim() : "";
+    if (pin) {
+      localStorage.setItem("lls_user_pin", pin);
+      if ($("bulk-pin-input")) $("bulk-pin-input").value = pin;
+    }
 
     showToast(scheduledAt ? "Queuing scheduled transfer..." : "Starting transfer in background...", "info");
     try {
       const res = await fetch(`${API}/api/client/send`, {
         method: "POST",
         headers: getHeaders(),
-        body: JSON.stringify({ to, amount, scheduledAt, twoStepCode })
+        body: JSON.stringify({ to, amount, scheduledAt, pin, twoStepCode })
       });
       const data = await res.json();
       if (res.ok) {
@@ -411,14 +435,19 @@ function setupActions() {
       scheduledAt = new Date(targetTs).toISOString();
     }
 
+    const pin = ($("bulk-pin-input") ? $("bulk-pin-input").value.trim() : "") || (localStorage.getItem("lls_user_pin") || "");
     const twoStepCode = $("bulk-twostep-input") ? $("bulk-twostep-input").value.trim() : "";
+    if (pin) {
+      localStorage.setItem("lls_user_pin", pin);
+      if ($("single-pin-input")) $("single-pin-input").value = pin;
+    }
 
     showToast(scheduledAt ? `Queuing scheduled bulk for ${rawLines.length} players...` : `Launching bulk send to ${rawLines.length} players...`, "info");
     try {
       const res = await fetch(`${API}/api/client/batch`, {
         method: "POST",
         headers: getHeaders(),
-        body: JSON.stringify({ recipients: rawLines, amountPerUser: amountPer, scheduledAt, twoStepCode })
+        body: JSON.stringify({ recipients: rawLines, amountPerUser: amountPer, scheduledAt, pin, twoStepCode })
       });
       const data = await res.json();
       if (res.ok) {
@@ -569,6 +598,28 @@ async function resolveRecipient(query) {
   } catch {}
 }
 
+function buildTwoStepBoxHtml(j) {
+  const is2fa = j.twoStepType === "2fa";
+  const headerText = is2fa ? "🛡️ Two-Step 2FA Verification Required:" : "🛡️ Transaction PIN / Verification Required:";
+  const subText = is2fa
+    ? "Enter your 6-digit 2FA code (from Authenticator App or Email)"
+    : "Enter your Transaction PIN (saved once for all chunks) or 6-digit 2FA code";
+  const defaultVal = is2fa ? "" : (localStorage.getItem("lls_user_pin") || "");
+  return `
+    <div class="card-twostep-box" id="twostep-box-${j.id}" data-twostep-type="${j.twoStepType || 'pin'}">
+      <div class="card-twostep-header">${headerText}</div>
+      <div style="font-size:11px; opacity:0.85; margin: 3px 0 6px 0;">${subText}</div>
+      <div class="card-twostep-controls">
+        <input type="text" id="twostep-input-${j.id}" value="${defaultVal}" placeholder="PIN or 6-digit 2FA code" maxlength="10" class="mono-input card-twostep-field" autocomplete="off">
+        <button class="card-twostep-btn" id="twostep-btn-${j.id}" onclick="submitCardTwoStep('${j.id}')">Submit & Send</button>
+      </div>
+      <div style="margin-top:5px; display:flex; justify-content:space-between; align-items:center;">
+        <button type="button" class="btn-resend-twostep" style="background:none; border:none; color:var(--apple-blue, #0071e3); font-size:11px; cursor:pointer; padding:2px 0; text-decoration:underline;" onclick="resendClientEmailCode('${j.id}')">📧 Resend Email 2FA Code</button>
+      </div>
+    </div>
+  `;
+}
+
 // ---------------------------------------------------------
 // Render Active Jobs
 // ---------------------------------------------------------
@@ -578,11 +629,11 @@ function renderJobs(jobs) {
   const scheduled = jobs.filter(j => j.status === "SCHEDULED");
   const running = jobs.filter(j => j.status === "RUNNING");
   const paused = jobs.filter(j => j.status === "PAUSED");
-  const awaitingCode = jobs.filter(j => j.status !== "CANCELLED" && j.remaining > 0 && (!!j.needsTwoStep || (j.logs && j.logs.some(l => String(l).toLowerCase().includes("two-step")))));
+  const awaitingCode = jobs.filter(j => j.status === "PAUSED" && j.remaining > 0 && !!j.needsTwoStep);
 
   if (badge) {
     if (awaitingCode.length > 0) {
-      badge.textContent = `${awaitingCode.length} Needs 2FA Code`;
+      badge.textContent = `${awaitingCode.length} Needs PIN / 2FA`;
       badge.className = "active-badge badge-warning-pill";
     } else {
       badge.className = "active-badge";
@@ -620,7 +671,7 @@ function renderJobs(jobs) {
     const isCompleted = j.status === "COMPLETED" || (j.total > 0 && j.remaining === 0);
     const isRunning = j.status === "RUNNING";
     const isPaused = j.status === "PAUSED";
-    const needsTwoStep = !isCancelled && !isCompleted && j.remaining > 0 && (!!j.needsTwoStep || (j.logs && j.logs.some(l => String(l).toLowerCase().includes("two-step"))));
+    const needsTwoStep = isPaused && !isCancelled && !isCompleted && j.remaining > 0 && !!j.needsTwoStep;
     const pct = j.total > 0 ? Math.min(100, Math.round(((j.total - j.remaining) / j.total) * 100)) : 0;
 
     let countdownText = "";
@@ -690,19 +741,7 @@ function renderJobs(jobs) {
       card.className = `job-card ${isScheduled ? 'scheduled' : ''}`;
       card.dataset.jobId = j.id;
 
-      const twoStepBoxHtml = needsTwoStep ? `
-        <div class="card-twostep-box" id="twostep-box-${j.id}">
-          <div class="card-twostep-header">🛡️ Two-Step Verification Required:</div>
-          <div style="font-size:11px; opacity:0.85; margin: 3px 0 6px 0;">Enter your 6-digit code (from Authenticator App or Email) or PIN</div>
-          <div class="card-twostep-controls">
-            <input type="text" id="twostep-input-${j.id}" placeholder="PIN or 6-digit code" maxlength="10" class="mono-input card-twostep-field" autocomplete="off">
-            <button class="card-twostep-btn" id="twostep-btn-${j.id}" onclick="submitCardTwoStep('${j.id}')">Submit & Send</button>
-          </div>
-          <div style="margin-top:5px; display:flex; justify-content:space-between; align-items:center;">
-            <button type="button" class="btn-resend-twostep" style="background:none; border:none; color:var(--apple-blue, #0071e3); font-size:11px; cursor:pointer; padding:2px 0; text-decoration:underline;" onclick="resendClientEmailCode('${j.id}')">📧 Resend Email Code</button>
-          </div>
-        </div>
-      ` : "";
+      const twoStepBoxHtml = needsTwoStep ? buildTwoStepBoxHtml(j) : "";
 
       card.innerHTML = `
         <div class="job-header">
@@ -744,19 +783,7 @@ function renderJobs(jobs) {
       if (twoStepSlot) {
         const existingTwoStepBox = twoStepSlot.querySelector(".card-twostep-box");
         if (needsTwoStep && !existingTwoStepBox) {
-          twoStepSlot.innerHTML = `
-            <div class="card-twostep-box" id="twostep-box-${j.id}">
-              <div class="card-twostep-header">🛡️ Two-Step Verification Required:</div>
-              <div style="font-size:11px; opacity:0.85; margin: 3px 0 6px 0;">Enter your 6-digit code (from Authenticator App or Email) or PIN</div>
-              <div class="card-twostep-controls">
-                <input type="text" id="twostep-input-${j.id}" placeholder="PIN or 6-digit code" maxlength="10" class="mono-input card-twostep-field" autocomplete="off">
-                <button class="card-twostep-btn" id="twostep-btn-${j.id}" onclick="submitCardTwoStep('${j.id}')">Submit & Send</button>
-              </div>
-              <div style="margin-top:5px; display:flex; justify-content:space-between; align-items:center;">
-                <button type="button" class="btn-resend-twostep" style="background:none; border:none; color:var(--apple-blue, #0071e3); font-size:11px; cursor:pointer; padding:2px 0; text-decoration:underline;" onclick="resendClientEmailCode('${j.id}')">📧 Resend Email Code</button>
-              </div>
-            </div>
-          `;
+          twoStepSlot.innerHTML = buildTwoStepBoxHtml(j);
           const input = twoStepSlot.querySelector(`#twostep-input-${j.id}`);
           if (input) {
             input.addEventListener("keydown", e => {
@@ -768,7 +795,6 @@ function renderJobs(jobs) {
             setTimeout(() => input.focus(), 50);
           }
         } else if (needsTwoStep && existingTwoStepBox) {
-          // If paused or failed, ensure the button is never stuck in 'Verifying...' state
           const btn = existingTwoStepBox.querySelector(".card-twostep-btn");
           if (btn && btn.disabled && (isPaused || j.status === 'PAUSED')) {
             btn.disabled = false;
@@ -805,8 +831,16 @@ function renderJobs(jobs) {
 
 window.submitCardTwoStep = async jobId => {
   const input = document.getElementById(`twostep-input-${jobId}`);
+  const box = document.getElementById(`twostep-box-${jobId}`);
+  const type = box ? box.dataset.twostepType : "pin";
   const code = input ? input.value.trim() : "";
   if (!code) return showToast("Enter your PIN or 2FA code", "error");
+
+  if (type !== "2fa") {
+    localStorage.setItem("lls_user_pin", code);
+    if ($("single-pin-input")) $("single-pin-input").value = code;
+    if ($("bulk-pin-input")) $("bulk-pin-input").value = code;
+  }
 
   const btn = document.getElementById(`twostep-btn-${jobId}`);
   if (btn) {
@@ -814,7 +848,7 @@ window.submitCardTwoStep = async jobId => {
     btn.textContent = "Verifying...";
   }
 
-  showToast("Submitting PIN/code & resuming...", "info");
+  showToast("Submitting & resuming transfer...", "info");
   try {
     await resumeClientJob(jobId, code);
   } finally {
@@ -897,11 +931,11 @@ window.pauseClientJob = async jobId => {
 
 window.resumeClientJob = async (jobId, twoStepCode = null) => {
   try {
-    const code = twoStepCode || (document.getElementById(`twostep-input-${jobId}`) ? document.getElementById(`twostep-input-${jobId}`).value.trim() : "");
+    const code = twoStepCode || (document.getElementById(`twostep-input-${jobId}`) ? document.getElementById(`twostep-input-${jobId}`).value.trim() : "") || (localStorage.getItem("lls_user_pin") || "");
     const res = await fetch(`${API}/api/client/resume`, {
       method: "POST",
       headers: getHeaders(),
-      body: JSON.stringify({ jobId, twoStepCode: code })
+      body: JSON.stringify({ jobId, pin: code, twoStepCode: code })
     });
     const data = await res.json();
     if (res.ok) {
@@ -940,4 +974,3 @@ window.stopClientJob = async jobId => {
     showToast(err.message, "error");
   }
 };
-

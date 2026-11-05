@@ -160,10 +160,19 @@
             </div>
           </div>
 
+          <div class="form-group" id="group-pin-single">
+            <label style="display:flex; justify-content:space-between; align-items:center;">
+              <span>Transaction PIN <span style="color:var(--apple-amber); font-weight:700;">(Required)</span></span>
+              <span style="font-size:10px; color:var(--apple-blue); font-weight:500;">🔒 Saved on device</span>
+            </label>
+            <input type="password" id="single-pin-input" placeholder="Enter your 4 or 6-digit transaction PIN" maxlength="10" class="mono-input" autocomplete="off">
+            <div class="field-hint">Enter once and it automatically applies to every chunk in single & bulk transfers.</div>
+          </div>
+
           <div class="form-group" id="group-twostep-single">
-            <label>Two-Step Code (If 2FA enabled on your account)</label>
+            <label>Two-Step 2FA Code (Optional — only if 2FA is enabled on your account)</label>
             <input type="text" id="single-twostep-input" placeholder="6-digit 2FA code (e.g. 123456)" maxlength="8" class="mono-input" autocomplete="off">
-            <div class="field-hint">LagosLife asks for this once when sending large amounts with 2FA enabled.</div>
+            <div class="field-hint">If your account also has Authenticator/Email 2FA enabled, enter the 6-digit code here.</div>
           </div>
 
           <!-- Schedule Transfer Option -->
@@ -212,10 +221,19 @@
             </div>
           </div>
 
+          <div class="form-group" id="group-pin-bulk">
+            <label style="display:flex; justify-content:space-between; align-items:center;">
+              <span>Transaction PIN <span style="color:var(--apple-amber); font-weight:700;">(Required)</span></span>
+              <span style="font-size:10px; color:var(--apple-blue); font-weight:500;">🔒 Saved on device</span>
+            </label>
+            <input type="password" id="bulk-pin-input" placeholder="Enter your 4 or 6-digit transaction PIN" maxlength="10" class="mono-input" autocomplete="off">
+            <div class="field-hint">Your PIN is automatically re-used on every chunk so your entire bulk queue finishes non-stop.</div>
+          </div>
+
           <div class="form-group" id="group-twostep-bulk">
-            <label>Two-Step Code (If 2FA enabled on your account)</label>
+            <label>Two-Step 2FA Code (Optional — only if 2FA is enabled on your account)</label>
             <input type="text" id="bulk-twostep-input" placeholder="6-digit 2FA code (e.g. 123456)" maxlength="8" class="mono-input" autocomplete="off">
-            <div class="field-hint">LagosLife asks for this once when sending large amounts with 2FA enabled.</div>
+            <div class="field-hint">If your account also has Authenticator/Email 2FA enabled, enter the 6-digit code here.</div>
           </div>
 
           <!-- Schedule Bulk Option -->
@@ -298,6 +316,6 @@
     </div>
   </div>
 
-  <script src="client.js?v=3.1"></script>
+  <script src="client.js?v=3.2"></script>
 </body>
 </html>
