@@ -176,7 +176,7 @@ function setupTabs() {
     });
   });
 
-  // Mode tabs (Single vs Bulk)
+  // Mode tabs (Single vs Bulk vs Spray)
   document.querySelectorAll(".mode-tab-btn").forEach(btn => {
     btn.addEventListener("click", () => {
       document.querySelectorAll(".mode-tab-btn").forEach(b => b.classList.remove("active"));
@@ -186,6 +186,12 @@ function setupTabs() {
       if (target) target.classList.add("active");
     });
   });
+
+  // Auto-select Auto-Sprayer tab if user visited /sprayer or #sprayer
+  if (window.location.pathname.toLowerCase().includes("spray") || window.location.hash.toLowerCase().includes("spray")) {
+    const sprayTabBtn = document.querySelector('.mode-tab-btn[data-mode="spray"]');
+    if (sprayTabBtn) sprayTabBtn.click();
+  }
 
   // Amount Chips for Single
   document.querySelectorAll("[data-amt]").forEach(chip => {

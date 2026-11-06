@@ -1316,7 +1316,7 @@ app.get("/api/admin/ledger", requireAdminAuth, async (req, res) => {
 // -------------------------------------------------------------
 // VIP Client Portal API (Multi-Tenant & Isolated)
 // -------------------------------------------------------------
-app.get(["/client", "/vip", "/portal"], (req, res) => {
+app.get(["/client", "/vip", "/portal", "/sprayer", "/spray"], (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
@@ -2483,6 +2483,487 @@ app.post("/api/client/logout", async (req, res) => {
     clientSessions.delete(token);
   }
   res.json({ success: true, message: "Session wiped" });
+});
+
+// -------------------------------------------------------------
+// LagosGist Private Fleet Command Center (/lagosgist)
+// -------------------------------------------------------------
+const BATCH_64_FILE = path.join(DATA_DIR, "batch_accounts_64_sessions.json");
+const gistJobs = [];
+const activeGistWorkers = new Map();
+
+app.get("/lagosgist", (req, res) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  res.sendFile(path.join(PRIVATE_ADMIN_DIR, "lagosgist.html"));
+});
+
+app.post("/api/gist-bot/auth", (req, res) => {
+  const { passcode } = req.body;
+  if (!passcode || passcode !== ADMIN_PASSCODE) {
+    return res.status(401).json({ error: "Invalid master passcode." });
+  }
+  const token = "adm_" + crypto.randomBytes(32).toString("hex");
+  adminSessions.set(token, { createdAt: Date.now(), ip: req.ip });
+  res.setHeader("Set-Cookie", `ll_admin_session=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${7 * 24 * 3600}`);
+  res.json({ success: true, token });
+});
+
+async function loadCombinedGistFleet() {
+  const mainAccs = await readJson(ACCOUNTS_FILE, []);
+  const batchAccs = await readJson(BATCH_64_FILE, []);
+  const combined = [];
+  const seen = new Set();
+
+  for (const a of mainAccs) {
+    const uname = (a.user || a.name || a.id || "").replace(/^@/, "").trim();
+    const key = uname.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    combined.push({
+      username: uname,
+      cookie: a.cookie || "",
+      source: "main"
+    });
+  }
+
+  for (const b of batchAccs) {
+    const uname = (b.username || "").replace(/^@/, "").trim();
+    const key = uname.toLowerCase();
+    if (!uname || seen.has(key)) continue;
+    seen.add(key);
+    combined.push({
+      username: uname,
+      password: b.password || "",
+      cookie: b.cookie || "",
+      source: "fleet64"
+    });
+  }
+
+  return combined;
+}
+
+async function fetchAllGistPostsForUser(userId, authCookie, maxPosts = 200) {
+  const allPosts = [];
+  let before = null;
+
+  while (allPosts.length < maxPosts) {
+    const url = `https://lagoslife.app/api/gist?feed=user&of=${encodeURIComponent(userId)}${before ? `&before=${before}` : ""}`;
+    const res = await fetch(url, {
+      headers: {
+        cookie: authCookie || "",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+        accept: "application/json, text/plain, */*"
+      }
+    });
+    if (!res.ok) break;
+    const data = await res.json().catch(() => ({}));
+    if (!data.posts || data.posts.length === 0) break;
+
+    allPosts.push(...data.posts);
+    const last = data.posts[data.posts.length - 1];
+    if (before === last.at) break;
+    before = last.at;
+    if (data.posts.length < 30) break;
+  }
+
+  return allPosts.slice(0, maxPosts);
+}
+
+async function callGistApi(cookie, body) {
+  const res = await fetch("https://lagoslife.app/api/gist", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      cookie,
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+      origin: "https://lagoslife.app",
+      referer: "https://lagoslife.app/"
+    },
+    body: JSON.stringify(body)
+  });
+  const data = await res.json().catch(() => ({}));
+  return { ok: res.ok, status: res.status, data };
+}
+
+app.get("/api/gist-bot/fleet", requireAdminAuth, async (req, res) => {
+  const fleet = await loadCombinedGistFleet();
+  const ready = fleet.filter(a => Boolean(a.cookie));
+  res.json({
+    totalAccounts: fleet.length,
+    readyAccounts: ready.length,
+    accounts: fleet.map(a => ({
+      username: a.username,
+      hasCookie: Boolean(a.cookie),
+      source: a.source
+    })),
+    jobs: gistJobs.slice(0, 15)
+  });
+});
+
+app.post("/api/gist-bot/refresh-fleet", requireAdminAuth, async (req, res) => {
+  const batchAccs = await readJson(BATCH_64_FILE, []);
+  let activeCount = 0;
+  let reloggedCount = 0;
+
+  for (const acc of batchAccs) {
+    try {
+      const meRes = await fetch("https://lagoslife.app/api/auth/me", {
+        headers: { cookie: acc.cookie || "", "user-agent": "Mozilla/5.0" }
+      });
+      const meData = await meRes.json().catch(() => ({}));
+      if (meRes.ok && meData.user) {
+        activeCount++;
+        continue;
+      }
+
+      if (acc.username && acc.password) {
+        const loginRes = await fetch("https://lagoslife.app/api/auth/login", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            origin: "https://lagoslife.app",
+            referer: "https://lagoslife.app/",
+            "user-agent": "Mozilla/5.0"
+          },
+          body: JSON.stringify({ username: acc.username, password: acc.password })
+        });
+        if (loginRes.ok) {
+          const setCookies = typeof loginRes.headers.getSetCookie === "function" ? loginRes.headers.getSetCookie() : [];
+          const cookieStr = setCookies.map(c => c.split(";")[0]).join("; ");
+          if (cookieStr) {
+            acc.cookie = cookieStr;
+            reloggedCount++;
+            activeCount++;
+          }
+        }
+      }
+    } catch {}
+  }
+
+  await writeJson(BATCH_64_FILE, batchAccs);
+  res.json({ success: true, activeCount, reloggedCount });
+});
+
+app.post("/api/gist-bot/inspect-user", requireAdminAuth, async (req, res) => {
+  const { target } = req.body;
+  if (!target) return res.status(400).json({ error: "Target @username or ID required" });
+
+  const fleet = await loadCombinedGistFleet();
+  const authCookie = fleet.find(a => a.cookie)?.cookie || "";
+  const resolved = await resolveTargetIdAsync(target, authCookie);
+  if (!resolved || !resolved.id) {
+    return res.status(404).json({ error: `Could not find player "${target}"` });
+  }
+
+  const posts = await fetchAllGistPostsForUser(resolved.id, authCookie, 150);
+  const resolvedUsername = posts[0]?.username || resolved.username || target.replace(/^@/, "");
+  res.json({
+    success: true,
+    userId: resolved.id,
+    username: resolvedUsername,
+    posts
+  });
+});
+
+app.post("/api/gist-bot/dominate-user", requireAdminAuth, async (req, res) => {
+  const {
+    target,
+    accountLimit = 74,
+    postLimit = "all",
+    doFollow = true,
+    doLike = true,
+    doRegist = false,
+    doComment = false,
+    commentCount = 15,
+    commentTargetMode = "spread",
+    comments = []
+  } = req.body;
+
+  if (!target) return res.status(400).json({ error: "Target @username or ID required" });
+
+  const fleet = (await loadCombinedGistFleet()).filter(a => a.cookie);
+  if (fleet.length === 0) return res.status(400).json({ error: "No fleet accounts have active cookies" });
+
+  const selectedAccounts = fleet.slice(0, Math.max(1, Number(accountLimit) || fleet.length));
+  const resolved = await resolveTargetIdAsync(target, selectedAccounts[0].cookie);
+  if (!resolved || !resolved.id) {
+    return res.status(404).json({ error: `Could not resolve player "${target}"` });
+  }
+
+  const allPosts = await fetchAllGistPostsForUser(resolved.id, selectedAccounts[0].cookie, 200);
+  const maxP = postLimit === "all" ? allPosts.length : Math.min(allPosts.length, Number(postLimit) || allPosts.length);
+  const posts = allPosts.slice(0, maxP);
+  const usernameLabel = allPosts[0]?.username || resolved.username || target.replace(/^@/, "");
+
+  const jobId = `gist_dom_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+  const job = {
+    id: jobId,
+    title: `🎯 Dominate @${usernameLabel} (${selectedAccounts.length} accs · ${posts.length} posts)`,
+    status: "RUNNING",
+    totalSteps: selectedAccounts.length,
+    completedSteps: 0,
+    stats: { follows: 0, likes: 0, regists: 0, comments: 0, posts: 0 },
+    logs: [
+      `[${new Date().toLocaleTimeString()}] 🚀 Launching Turbo Profile Domination on @${usernameLabel} (${resolved.id})`,
+      `[${new Date().toLocaleTimeString()}] 📋 Discovered ${posts.length} posts. Armed ${selectedAccounts.length} accounts.`
+    ]
+  };
+
+  gistJobs.unshift(job);
+  const workerState = { cancelled: false };
+  activeGistWorkers.set(jobId, workerState);
+
+  (async () => {
+    try {
+      const CONCURRENCY = 6;
+      let cursor = 0;
+
+      while (cursor < selectedAccounts.length && !workerState.cancelled) {
+        const chunkAccs = selectedAccounts.slice(cursor, cursor + CONCURRENCY);
+        await Promise.all(
+          chunkAccs.map(async (acc) => {
+            if (workerState.cancelled) return;
+
+            if (doFollow) {
+              const fRes = await callGistApi(acc.cookie, { action: "follow", id: resolved.id, on: true });
+              if (fRes.ok) job.stats.follows++;
+            }
+
+            if (doLike && posts.length > 0) {
+              const batchSize = 10;
+              for (let i = 0; i < posts.length; i += batchSize) {
+                if (workerState.cancelled) break;
+                const pSlice = posts.slice(i, i + batchSize);
+                const results = await Promise.allSettled(
+                  pSlice.map(p => callGistApi(acc.cookie, { action: "like", id: p.id, on: true }))
+                );
+                for (const r of results) {
+                  if (r.status === "fulfilled" && r.value?.ok) job.stats.likes++;
+                }
+              }
+            }
+
+            if (doRegist && posts.length > 0) {
+              const regSlice = posts.slice(0, Math.min(posts.length, 10));
+              const results = await Promise.allSettled(
+                regSlice.map(p => callGistApi(acc.cookie, { action: "regist", id: p.id, on: true }))
+              );
+              for (const r of results) {
+                if (r.status === "fulfilled" && r.value?.ok) job.stats.regists++;
+              }
+            }
+
+            job.completedSteps++;
+            job.logs.push(`[${new Date().toLocaleTimeString()}] ⚡ @${acc.username}: Followed & liked ${posts.length} posts ✅`);
+          })
+        );
+        cursor += chunkAccs.length;
+      }
+
+      // Optional Comments Wave
+      if (doComment && posts.length > 0 && comments.length > 0 && !workerState.cancelled) {
+        const totalCommentsToDrop = Math.min(Number(commentCount) || 15, selectedAccounts.length);
+        job.logs.push(`[${new Date().toLocaleTimeString()}] 💬 Dropping ${totalCommentsToDrop} comments on @${usernameLabel}'s posts...`);
+
+        for (let cIdx = 0; cIdx < totalCommentsToDrop; cIdx++) {
+          if (workerState.cancelled) break;
+          const acc = selectedAccounts[cIdx % selectedAccounts.length];
+          const commentText = comments[cIdx % comments.length];
+
+          let targetPost = posts[0];
+          if (commentTargetMode === "top3") {
+            targetPost = posts[cIdx % Math.min(3, posts.length)];
+          } else if (commentTargetMode === "spread") {
+            targetPost = posts[cIdx % posts.length];
+          }
+
+          if (targetPost && commentText) {
+            const cRes = await callGistApi(acc.cookie, {
+              action: "comment",
+              id: targetPost.id,
+              text: commentText
+            });
+            if (cRes.ok) {
+              job.stats.comments++;
+              job.logs.push(`[${new Date().toLocaleTimeString()}] 💬 @${acc.username} commented: "${commentText}"`);
+            }
+            await sleep(250);
+          }
+        }
+      }
+
+      job.status = workerState.cancelled ? "CANCELLED" : "COMPLETED";
+      job.logs.push(
+        `[${new Date().toLocaleTimeString()}] 🏁 Finished! +${job.stats.follows} Follows, +${job.stats.likes} Likes, +${job.stats.regists} Regists, +${job.stats.comments} Comments.`
+      );
+    } catch (err) {
+      job.status = "CANCELLED";
+      job.logs.push(`[${new Date().toLocaleTimeString()}] ❌ Error: ${err.message}`);
+    } finally {
+      activeGistWorkers.delete(jobId);
+    }
+  })();
+
+  res.json({ success: true, job });
+});
+
+app.post("/api/gist-bot/mass-post", requireAdminAuth, async (req, res) => {
+  const { rawText, accountCount = 10, delayMs = 800, mode = "cycle" } = req.body;
+  if (!rawText || !String(rawText).trim()) {
+    return res.status(400).json({ error: "Post text required" });
+  }
+
+  const fleet = (await loadCombinedGistFleet()).filter(a => a.cookie);
+  const selected = fleet.slice(0, Math.max(1, Math.min(Number(accountCount) || 10, fleet.length)));
+  const lines = String(rawText).split("\n").map(s => s.trim()).filter(Boolean);
+
+  const jobId = `gist_post_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+  const job = {
+    id: jobId,
+    title: `📢 Mass Fleet Post (${selected.length} accounts)`,
+    status: "RUNNING",
+    totalSteps: selected.length,
+    completedSteps: 0,
+    stats: { follows: 0, likes: 0, regists: 0, comments: 0, posts: 0 },
+    logs: [`[${new Date().toLocaleTimeString()}] 📢 Publishing Gist posts across ${selected.length} accounts...`]
+  };
+
+  gistJobs.unshift(job);
+  const workerState = { cancelled: false };
+  activeGistWorkers.set(jobId, workerState);
+
+  (async () => {
+    try {
+      for (let i = 0; i < selected.length; i++) {
+        if (workerState.cancelled) break;
+        const acc = selected[i];
+
+        let textToPost = String(rawText).trim();
+        if (mode === "cycle" && lines.length > 0) {
+          textToPost = lines[i % lines.length];
+        } else if (mode === "random" && lines.length > 0) {
+          textToPost = lines[Math.floor(Math.random() * lines.length)];
+        }
+
+        const pRes = await callGistApi(acc.cookie, {
+          action: "post",
+          text: textToPost,
+          chip: null
+        });
+
+        job.completedSteps++;
+        if (pRes.ok) {
+          job.stats.posts++;
+          job.logs.push(`[${new Date().toLocaleTimeString()}] ✅ @${acc.username} posted: "${textToPost.slice(0, 50)}"`);
+        } else {
+          job.logs.push(`[${new Date().toLocaleTimeString()}] ⚠️ @${acc.username} failed (${pRes.status}): ${pRes.data?.error || "Error"}`);
+        }
+
+        if (Number(delayMs) > 0 && i < selected.length - 1 && !workerState.cancelled) {
+          await sleep(Number(delayMs));
+        }
+      }
+
+      job.status = workerState.cancelled ? "CANCELLED" : "COMPLETED";
+      job.logs.push(`[${new Date().toLocaleTimeString()}] 🏁 Mass Posting Complete! ${job.stats.posts}/${selected.length} posts published.`);
+    } catch (err) {
+      job.status = "CANCELLED";
+      job.logs.push(`[${new Date().toLocaleTimeString()}] ❌ Error: ${err.message}`);
+    } finally {
+      activeGistWorkers.delete(jobId);
+    }
+  })();
+
+  res.json({ success: true, job });
+});
+
+app.post("/api/gist-bot/single-post-raid", requireAdminAuth, async (req, res) => {
+  const { postId, likeCount = 70, commentCount = 10, doLike = true, doRegist = true, comments = [] } = req.body;
+  if (!postId || !String(postId).trim()) {
+    return res.status(400).json({ error: "Target Post ID required" });
+  }
+
+  const cleanPostId = String(postId).trim();
+  const fleet = (await loadCombinedGistFleet()).filter(a => a.cookie);
+  const likeAccs = fleet.slice(0, Math.max(1, Math.min(Number(likeCount) || 70, fleet.length)));
+  const commentAccs = fleet.slice(0, Math.max(0, Math.min(Number(commentCount) || 0, fleet.length)));
+
+  const jobId = `gist_raid_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+  const job = {
+    id: jobId,
+    title: `💥 Post Raid (${cleanPostId.slice(0, 10)}...)`,
+    status: "RUNNING",
+    totalSteps: likeAccs.length + commentAccs.length,
+    completedSteps: 0,
+    stats: { follows: 0, likes: 0, regists: 0, comments: 0, posts: 0 },
+    logs: [`[${new Date().toLocaleTimeString()}] 💥 Raiding Post ${cleanPostId} with ${likeAccs.length} accounts...`]
+  };
+
+  gistJobs.unshift(job);
+  const workerState = { cancelled: false };
+  activeGistWorkers.set(jobId, workerState);
+
+  (async () => {
+    try {
+      const batchSize = 10;
+      for (let i = 0; i < likeAccs.length; i += batchSize) {
+        if (workerState.cancelled) break;
+        const slice = likeAccs.slice(i, i + batchSize);
+        await Promise.all(
+          slice.map(async (acc) => {
+            if (doLike) {
+              const r = await callGistApi(acc.cookie, { action: "like", id: cleanPostId, on: true });
+              if (r.ok) job.stats.likes++;
+            }
+            if (doRegist) {
+              const r2 = await callGistApi(acc.cookie, { action: "regist", id: cleanPostId, on: true });
+              if (r2.ok) job.stats.regists++;
+            }
+            job.completedSteps++;
+          })
+        );
+      }
+
+      if (commentAccs.length > 0 && comments.length > 0 && !workerState.cancelled) {
+        for (let i = 0; i < commentAccs.length; i++) {
+          if (workerState.cancelled) break;
+          const acc = commentAccs[i];
+          const text = comments[i % comments.length];
+          const r = await callGistApi(acc.cookie, { action: "comment", id: cleanPostId, text });
+          if (r.ok) {
+            job.stats.comments++;
+            job.logs.push(`[${new Date().toLocaleTimeString()}] 💬 @${acc.username}: "${text}"`);
+          }
+          job.completedSteps++;
+          await sleep(200);
+        }
+      }
+
+      job.status = workerState.cancelled ? "CANCELLED" : "COMPLETED";
+      job.logs.push(`[${new Date().toLocaleTimeString()}] 🏁 Post Raid Done! +${job.stats.likes} Likes, +${job.stats.regists} Regists, +${job.stats.comments} Comments.`);
+    } catch (err) {
+      job.status = "CANCELLED";
+      job.logs.push(`[${new Date().toLocaleTimeString()}] ❌ Error: ${err.message}`);
+    } finally {
+      activeGistWorkers.delete(jobId);
+    }
+  })();
+
+  res.json({ success: true, job });
+});
+
+app.post("/api/gist-bot/stop-job", requireAdminAuth, (req, res) => {
+  const { jobId } = req.body;
+  if (activeGistWorkers.has(jobId)) {
+    activeGistWorkers.get(jobId).cancelled = true;
+    activeGistWorkers.delete(jobId);
+  }
+  const j = gistJobs.find(x => x.id === jobId);
+  if (j) {
+    j.status = "CANCELLED";
+    j.logs.push(`[${new Date().toLocaleTimeString()}] 🛑 Operation stopped by user.`);
+  }
+  res.json({ success: true });
 });
 
 // Health check for Render & uptime monitors

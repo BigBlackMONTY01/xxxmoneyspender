@@ -1,0 +1,1168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LagosGist Command Center — Fleet Engagement & Mass Publisher</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #07090e;
+      --surface: #0f131d;
+      --surface-2: #161c2a;
+      --border: rgba(255, 255, 255, 0.08);
+      --text: #f3f6fc;
+      --muted: #8b95a9;
+      --accent: #10b981;
+      --accent-glow: rgba(16, 185, 129, 0.25);
+      --purple: #8b5cf6;
+      --pink: #ec4899;
+      --amber: #f59e0b;
+      --danger: #ef4444;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      min-height: 100vh;
+      background-image:
+        radial-gradient(circle at 15% 10%, rgba(139, 92, 246, 0.12), transparent 35%),
+        radial-gradient(circle at 85% 15%, rgba(16, 185, 129, 0.1), transparent 35%);
+    }
+    .hidden { display: none !important; }
+
+    /* Lock Screen */
+    .lock-screen {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .lock-card {
+      width: 100%;
+      max-width: 420px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 36px 28px;
+      text-align: center;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.6);
+    }
+    .lock-badge {
+      width: 60px;
+      height: 60px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, rgba(139,92,246,0.2), rgba(236,72,153,0.2));
+      border: 1px solid rgba(139,92,246,0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.75rem;
+      margin: 0 auto 18px;
+    }
+    .lock-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .lock-sub {
+      font-size: 0.88rem;
+      color: var(--muted);
+      margin-bottom: 24px;
+      line-height: 1.5;
+    }
+
+    /* Main Container */
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px 18px 80px;
+    }
+    .topbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 18px 22px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      margin-bottom: 22px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #8b5cf6, #ec4899);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.35rem;
+      box-shadow: 0 8px 20px rgba(236, 72, 153, 0.25);
+    }
+    .brand h1 {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.25rem;
+      font-weight: 700;
+    }
+    .brand p {
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+    .topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    /* Stats Row */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 14px;
+      margin-bottom: 22px;
+    }
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px 18px;
+    }
+    .stat-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .stat-value {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.55rem;
+      font-weight: 700;
+    }
+    .stat-sub {
+      font-size: 0.76rem;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    /* Navigation Tabs */
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+      background: var(--surface);
+      padding: 6px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      overflow-x: auto;
+    }
+    .tab-btn {
+      flex: 1;
+      min-width: 155px;
+      padding: 12px 16px;
+      border-radius: 10px;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-weight: 600;
+      font-size: 0.88rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .tab-btn.active {
+      background: linear-gradient(135deg, rgba(139,92,246,0.22), rgba(236,72,153,0.18));
+      color: #fff;
+      border: 1px solid rgba(139,92,246,0.45);
+    }
+
+    /* Layout Grid */
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 20px;
+    }
+    @media (max-width: 920px) {
+      .main-grid { grid-template-columns: 1fr; }
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 22px;
+      margin-bottom: 20px;
+    }
+    .card-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card-desc {
+      font-size: 0.82rem;
+      color: var(--muted);
+      margin-bottom: 18px;
+      line-height: 1.45;
+    }
+
+    .field {
+      margin-bottom: 16px;
+    }
+    .field label {
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #cbd5e1;
+      margin-bottom: 7px;
+    }
+    input[type="text"],
+    input[type="password"],
+    input[type="number"],
+    select,
+    textarea {
+      width: 100%;
+      padding: 12px 14px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 0.92rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--purple);
+    }
+    textarea {
+      resize: vertical;
+      min-height: 95px;
+      line-height: 1.45;
+    }
+
+    .row-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    @media (max-width: 560px) {
+      .row-2 { grid-template-columns: 1fr; }
+    }
+
+    /* Checkboxes / Toggles */
+    .toggle-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .toggle-box {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 14px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .toggle-box input {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--purple);
+      cursor: pointer;
+    }
+    .toggle-box span {
+      font-size: 0.86rem;
+      font-weight: 600;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px 20px;
+      border-radius: 10px;
+      border: none;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-weight: 700;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      color: #fff;
+    }
+    .btn-primary {
+      width: 100%;
+      background: linear-gradient(135deg, #8b5cf6, #ec4899);
+      box-shadow: 0 8px 24px rgba(139, 92, 246, 0.3);
+    }
+    .btn-primary:hover { opacity: 0.94; transform: translateY(-1px); }
+    .btn-emerald {
+      width: 100%;
+      background: linear-gradient(135deg, #10b981, #059669);
+      box-shadow: 0 8px 24px rgba(16, 185, 129, 0.28);
+    }
+    .btn-secondary {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      color: #e2e8f0;
+      padding: 9px 14px;
+      font-size: 0.82rem;
+    }
+    .btn-secondary:hover { background: rgba(255,255,255,0.08); }
+    .btn-danger {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      color: #fca5a5;
+      padding: 6px 12px;
+      font-size: 0.76rem;
+    }
+
+    /* Preset Chips */
+    .preset-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 8px;
+    }
+    .chip {
+      padding: 5px 10px;
+      border-radius: 999px;
+      font-size: 0.74rem;
+      font-weight: 600;
+      background: rgba(139, 92, 246, 0.14);
+      border: 1px solid rgba(139, 92, 246, 0.3);
+      color: #d8b4fe;
+      cursor: pointer;
+    }
+    .chip:hover { background: rgba(139, 92, 246, 0.26); }
+
+    /* User Preview Box */
+    .preview-box {
+      padding: 14px;
+      border-radius: 12px;
+      background: rgba(16, 185, 129, 0.07);
+      border: 1px solid rgba(16, 185, 129, 0.25);
+      margin-bottom: 16px;
+    }
+    .preview-post-list {
+      max-height: 220px;
+      overflow-y: auto;
+      margin-top: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .preview-post-item {
+      padding: 8px 10px;
+      background: rgba(0,0,0,0.35);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.79rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Job Cards & Live Logs */
+    .job-card {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+    .job-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .badge {
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .badge-running { background: rgba(16,185,129,0.2); color: #34d399; }
+    .badge-completed { background: rgba(139,92,246,0.2); color: #c4b5fd; }
+    .badge-cancelled { background: rgba(239,68,68,0.2); color: #fca5a5; }
+
+    .progress-bar {
+      width: 100%;
+      height: 7px;
+      background: rgba(255,255,255,0.07);
+      border-radius: 999px;
+      overflow: hidden;
+      margin: 8px 0;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #8b5cf6, #ec4899, #10b981);
+      transition: width 0.3s ease;
+    }
+    .log-box {
+      background: #05070b;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.74rem;
+      color: #a7f3d0;
+      max-height: 190px;
+      overflow-y: auto;
+      line-height: 1.5;
+    }
+
+    /* Fleet Table */
+    .fleet-list {
+      max-height: 440px;
+      overflow-y: auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 8px;
+    }
+    .fleet-pill {
+      padding: 9px 11px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.78rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .dot-ok { background: #10b981; box-shadow: 0 0 8px #10b981; }
+    .dot-warn { background: #f59e0b; }
+  </style>
+</head>
+<body>
+
+  <!-- PASSCODE LOCK GATE -->
+  <div id="lockScreen" class="lock-screen">
+    <div class="lock-card">
+      <div class="lock-badge">🔥</div>
+      <div class="lock-title">LagosGist Command</div>
+      <div class="lock-sub">Restricted Fleet Engagement & Mass Gist Publisher. Enter master passcode to unlock.</div>
+      <form id="unlockForm">
+        <div class="field">
+          <input type="password" id="passcodeInput" placeholder="Enter Master Passcode..." required autofocus style="text-align:center; letter-spacing: 0.15em; font-weight:700;" />
+        </div>
+        <button type="submit" class="btn btn-primary">Unlock /lagosgist ⚡</button>
+        <p id="unlockError" style="color:var(--danger); font-size:0.8rem; margin-top:10px;" class="hidden"></p>
+      </form>
+    </div>
+  </div>
+
+  <!-- MAIN COMMAND DASHBOARD -->
+  <div id="appScreen" class="container hidden">
+    <div class="topbar">
+      <div class="brand">
+        <div class="brand-icon">💬</div>
+        <div>
+          <h1>LagosGist Fleet Command</h1>
+          <p>Private Multi-Account Auto-Liker, Follower, Commenter & Mass Poster</p>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        <a href="/sprayer" class="btn btn-secondary">💸 Open Money Gun Sprayer</a>
+        <a href="/client" class="btn btn-secondary">🏦 Transfer Portal</a>
+        <button id="refreshFleetBtn" class="btn btn-secondary">🔄 Re-Login / Verify Fleet</button>
+      </div>
+    </div>
+
+    <!-- Stats Row -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">Total Loaded Fleet</div>
+        <div class="stat-value" id="statTotalAccounts">0</div>
+        <div class="stat-sub">Main + 64-Burner Fleet</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Ready With Cookies</div>
+        <div class="stat-value" id="statReadyAccounts" style="color:var(--accent);">0</div>
+        <div class="stat-sub">Armed for Turbo Gist Ops</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Active / Completed Ops</div>
+        <div class="stat-value" id="statTotalJobs" style="color:#c4b5fd;">0</div>
+        <div class="stat-sub">Session Gist Campaigns</div>
+      </div>
+    </div>
+
+    <!-- Mode Tabs -->
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="tabDominate">🎯 Dominate User (Follow + Like All + Comment)</button>
+      <button class="tab-btn" data-tab="tabMassPost">📢 Mass Post on All Accounts</button>
+      <button class="tab-btn" data-tab="tabSinglePost">💥 Raid Specific Post ID</button>
+      <button class="tab-btn" data-tab="tabFleet">👥 Fleet Accounts (<span id="tabFleetCount">0</span>)</button>
+    </div>
+
+    <div class="main-grid">
+      <!-- LEFT COLUMN: CONTROLS -->
+      <div>
+
+        <!-- TAB 1: DOMINATE USER -->
+        <div id="tabDominate" class="tab-pane card">
+          <div class="card-title">🎯 Target Profile Domination</div>
+          <div class="card-desc">
+            Enter any player's <strong>@username</strong> or <strong>User ID</strong>. All selected accounts will follow them, like every single post on their Gist timeline, optionally re-gist (repost), and drop realistic comments!
+          </div>
+
+          <div class="field">
+            <label>Target Player (@Username or User ID)</label>
+            <div style="display:flex; gap:8px;">
+              <input type="text" id="domTargetInput" placeholder="e.g. @Annie05 or 156cda27568c4876b9ec" />
+              <button type="button" id="inspectUserBtn" class="btn btn-secondary" style="white-space:nowrap;">🔍 Scan Posts</button>
+            </div>
+          </div>
+
+          <div id="userPreviewBox" class="preview-box hidden">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <strong id="previewUsername" style="color:#34d399; font-size:0.95rem;">@Player</strong>
+                <span id="previewUserId" style="font-size:0.75rem; color:var(--muted); margin-left:6px;"></span>
+              </div>
+              <span id="previewPostCount" class="badge badge-running">0 Posts Found</span>
+            </div>
+            <div id="previewPostList" class="preview-post-list"></div>
+          </div>
+
+          <div class="row-2">
+            <div class="field">
+              <label>How Many Fleet Accounts To Use?</label>
+              <input type="number" id="domAccountLimit" value="74" min="1" max="500" />
+            </div>
+            <div class="field">
+              <label>Max Posts To Like Per Account</label>
+              <select id="domPostLimit">
+                <option value="all" selected>All Posts on Their Profile (Full Sweep)</option>
+                <option value="50">Latest 50 Posts</option>
+                <option value="25">Latest 25 Posts</option>
+                <option value="10">Latest 10 Posts</option>
+                <option value="5">Latest 5 Posts</option>
+                <option value="1">Latest 1 Post Only</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Engagement Actions To Execute</label>
+            <div class="toggle-grid">
+              <label class="toggle-box">
+                <input type="checkbox" id="domDoFollow" checked />
+                <span>➕ Follow Target User</span>
+              </label>
+              <label class="toggle-box">
+                <input type="checkbox" id="domDoLike" checked />
+                <span>❤️ Like All Posts</span>
+              </label>
+              <label class="toggle-box">
+                <input type="checkbox" id="domDoRegist" />
+                <span>🔁 Re-Gist (Repost) Posts</span>
+              </label>
+              <label class="toggle-box">
+                <input type="checkbox" id="domDoComment" />
+                <span>💬 Drop Random Comments</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Comment Options (shown when Drop Random Comments is checked) -->
+          <div id="domCommentConfig" class="card hidden" style="background:rgba(139,92,246,0.06); border-color:rgba(139,92,246,0.28); margin-bottom:16px; padding:16px;">
+            <div class="row-2">
+              <div class="field">
+                <label>How Many Comments Total?</label>
+                <input type="number" id="domCommentCount" value="15" min="1" max="200" />
+              </div>
+              <div class="field">
+                <label>Where To Comment?</label>
+                <select id="domCommentTargetMode">
+                  <option value="latest">All on Their Latest Post</option>
+                  <option value="top3">Spread Across Latest 3 Posts</option>
+                  <option value="spread" selected>Spread Randomly Across All Posts</option>
+                </select>
+              </div>
+            </div>
+            <div class="field" style="margin-bottom:0;">
+              <label>Comment Pool (One per line — accounts pick randomly without repeating)</label>
+              <textarea id="domCommentsList" rows="5">Factssss 🔥🔥
+No cap wallahi 💯
+Big energy always 👑
+Too real abeg 😂🔥
+Say less!! 🚀
+Gist of the day 🙌
+Correct person ❤️✨
+Loud it louder abeg 🔊🔥
+Nothing but pure vibes 💯
+Steeze on 1000% 🔥
+Who else agrees with this?? 👀
+Omo this one enter well well 😂💯
+Certified Lagosian energy 🥂
+Always dropping bangers 🔥
+Love this sm ❤️🔥</textarea>
+              <div class="preset-chips">
+                <span class="chip" data-preset="hype">🔥 Hype & Vibes Preset</span>
+                <span class="chip" data-preset="funny">😂 Funny Lagos Banter</span>
+                <span class="chip" data-preset="queen">👑 Queen / Beauty Hype</span>
+                <span class="chip" data-preset="boss">💰 Boss / Politician Hype</span>
+              </div>
+            </div>
+          </div>
+
+          <button type="button" id="launchDominateBtn" class="btn btn-primary">
+            🚀 Launch Turbo Profile Domination
+          </button>
+        </div>
+
+        <!-- TAB 2: MASS POST ON ALL ACCOUNTS -->
+        <div id="tabMassPost" class="tab-pane card hidden">
+          <div class="card-title">📢 Mass Fleet Gist Publisher</div>
+          <div class="card-desc">
+            Publish posts to the LagosLife Gist feed across multiple or all logged-in accounts at once! Put <strong>one post per line</strong> to make every account post a different message, or write one line for all of them to post the exact same thing.
+          </div>
+
+          <div class="field">
+            <label>Post Content / Variations (One Post Per Line)</label>
+            <textarea id="massPostText" rows="6" placeholder="Line 1: First account posts this...&#10;Line 2: Second account posts this...&#10;(Or enter a single line and all selected accounts will post it!)"></textarea>
+          </div>
+
+          <div class="row-2">
+            <div class="field">
+              <label>How Many Accounts Should Post?</label>
+              <input type="number" id="massPostAccountCount" value="10" min="1" max="100" />
+            </div>
+            <div class="field">
+              <label>Posting Mode & Pacing</label>
+              <select id="massPostDelay">
+                <option value="0">⚡ Instant Flash Wave (All At Once)</option>
+                <option value="800" selected>🚀 Fast Stagger (0.8s between posts)</option>
+                <option value="2500">🌊 Natural Wave (2.5s between posts)</option>
+                <option value="6000">🕵️ Stealth Drip (6s between posts)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Line Selection Mode</label>
+            <select id="massPostMode">
+              <option value="cycle" selected>Cycle Lines in Order (Line 1 -> Acc 1, Line 2 -> Acc 2...)</option>
+              <option value="random">Pick Random Line From Box For Each Account</option>
+              <option value="full">Post Entire Text Block As One Single Post</option>
+            </select>
+          </div>
+
+          <button type="button" id="launchMassPostBtn" class="btn btn-emerald">
+            📢 Publish Across Fleet Now
+          </button>
+        </div>
+
+        <!-- TAB 3: RAID SPECIFIC POST ID -->
+        <div id="tabSinglePost" class="tab-pane card hidden">
+          <div class="card-title">💥 Single Post Raid</div>
+          <div class="card-desc">
+            Boost a single Gist post by its Post ID with instant Likes, Re-Gists, and Comments from your fleet.
+          </div>
+
+          <div class="field">
+            <label>Target Post ID</label>
+            <input type="text" id="raidPostId" placeholder="e.g. 9ca412e305924513845a" />
+          </div>
+
+          <div class="row-2">
+            <div class="field">
+              <label>Accounts to Like & Re-Gist</label>
+              <input type="number" id="raidLikeCount" value="70" min="1" max="100" />
+            </div>
+            <div class="field">
+              <label>Accounts to Comment</label>
+              <input type="number" id="raidCommentCount" value="10" min="0" max="100" />
+            </div>
+          </div>
+
+          <div class="toggle-grid">
+            <label class="toggle-box">
+              <input type="checkbox" id="raidDoLike" checked />
+              <span>❤️ Like Post</span>
+            </label>
+            <label class="toggle-box">
+              <input type="checkbox" id="raidDoRegist" checked />
+              <span>🔁 Re-Gist Post</span>
+            </label>
+          </div>
+
+          <div class="field">
+            <label>Comments to Drop (One per line — leave blank if 0 comments)</label>
+            <textarea id="raidCommentsText" rows="4">Factssss 🔥🔥
+No cap wallahi 💯
+Loud it louder abeg 🔊🔥
+Too real 😂💯
+Big energy always 👑</textarea>
+          </div>
+
+          <button type="button" id="launchRaidPostBtn" class="btn btn-primary">
+            💥 Raid Post Now
+          </button>
+        </div>
+
+        <!-- TAB 4: FLEET ACCOUNTS -->
+        <div id="tabFleet" class="tab-pane card hidden">
+          <div class="card-title">👥 Connected Fleet Accounts</div>
+          <div class="card-desc">
+            Combines your primary accounts (<code>accounts.json</code>) and the 64-account burner fleet (<code>batch_accounts_64_sessions.json</code>). Click "Re-Login / Verify Fleet" at the top if any burner session expires.
+          </div>
+          <div id="fleetListContainer" class="fleet-list"></div>
+        </div>
+
+      </div>
+
+      <!-- RIGHT COLUMN: LIVE OPERATIONS & TELEMETRY -->
+      <div>
+        <div class="card">
+          <div class="card-title" style="justify-content:space-between;">
+            <span>📡 Live Gist Operations</span>
+            <span id="livePollIndicator" style="font-size:0.72rem; color:var(--accent); font-weight:500;">● Live Sync</span>
+          </div>
+          <div class="card-desc">Real-time progress and logs from your fleet workers.</div>
+          <div id="jobsContainer">
+            <div style="text-align:center; padding:30px 10px; color:var(--muted); font-size:0.86rem;">
+              No Gist operations launched yet in this session.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const PRESETS = {
+      hype: [
+        "Factssss 🔥🔥",
+        "No cap wallahi 💯",
+        "Big energy always 👑",
+        "Too real abeg 😂🔥",
+        "Say less!! 🚀",
+        "Gist of the day 🙌",
+        "Correct person ❤️✨",
+        "Loud it louder abeg 🔊🔥",
+        "Nothing but pure vibes 💯",
+        "Steeze on 1000% 🔥",
+        "Who else agrees with this?? 👀",
+        "Omo this one enter well well 😂💯",
+        "Certified Lagosian energy 🥂",
+        "Always dropping bangers 🔥",
+        "Love this sm ❤️🔥"
+      ],
+      funny: [
+        "Omo this Lagos life no balance at all 😂😂😂",
+        "Abeg who off light for this gist?? 😭😂",
+        "Wait first let me screenshot this one 😂📸",
+        "Argue with your keypad abeg 😂🔥",
+        "Nothing wey Musa no go see for gate 😭🙌",
+        "My chest!! 😂😂😂",
+        "E shock you?? E shock me too 💀😂",
+        "If I speak now dem go say I too talk 🤐😂",
+        "Give this person cold Malt abeg 🍺😂",
+        "Table shaker of the year 🔨😂"
+      ],
+      queen: [
+        "Prettiest in Lagos no cap 😍👑",
+        "Beauty + Steeze = 100% ❤️✨",
+        "Queen energy forever 👑💖",
+        "Too fine abeg!! 😍🔥",
+        "Who get this Lagos na you!! 💅✨",
+        "Serving looks and facts 💯❤️",
+        "Star girl for a reason 🌟💖",
+        "Nobody badder wallahi 😍🔥",
+        "Pressure ti wa!! 🔥👑",
+        "Always glowing ❤️✨"
+      ],
+      boss: [
+        "001 of Lagos!! 👑💰",
+        "Bigman doings only 🥂🔥",
+        "Talk and do!! Respect boss 🙌💯",
+        "Capacity choke!! 🚀💰",
+        "Our leader has spoken 🔊👑",
+        "Incoming Governor doings 💯🔥",
+        "Money na water 💸🌊",
+        "Levels dey this thing abeg 👑",
+        "Odogwu for a reason 🦁🔥",
+        "We dey solidly behind you!! 🙌💯"
+      ]
+    };
+
+    let adminToken = localStorage.getItem("ll_gist_admin_token") || "";
+
+    function apiHeaders() {
+      return {
+        "Content-Type": "application/json",
+        ...(adminToken ? { "x-admin-token": adminToken, "x-admin-pin": adminToken } : {})
+      };
+    }
+
+    // Unlock Form
+    document.getElementById("unlockForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const passcode = document.getElementById("passcodeInput").value.trim();
+      const errEl = document.getElementById("unlockError");
+      errEl.classList.add("hidden");
+
+      try {
+        const res = await fetch("/api/gist-bot/auth", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ passcode })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Invalid passcode");
+
+        adminToken = data.token || passcode;
+        localStorage.setItem("ll_gist_admin_token", adminToken);
+        showDashboard();
+      } catch (err) {
+        errEl.textContent = err.message;
+        errEl.classList.remove("hidden");
+      }
+    });
+
+    async function showDashboard() {
+      const ok = await fetchFleetStatus();
+      if (ok) {
+        document.getElementById("lockScreen").classList.add("hidden");
+        document.getElementById("appScreen").classList.remove("hidden");
+      } else {
+        document.getElementById("lockScreen").classList.remove("hidden");
+        document.getElementById("appScreen").classList.add("hidden");
+      }
+    }
+
+    // Tabs switching
+    document.querySelectorAll(".tab-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+        document.querySelectorAll(".tab-pane").forEach(p => p.classList.add("hidden"));
+        btn.classList.add("active");
+        document.getElementById(btn.dataset.tab).classList.remove("hidden");
+      });
+    });
+
+    // Toggle comment config visibility
+    document.getElementById("domDoComment").addEventListener("change", (e) => {
+      document.getElementById("domCommentConfig").classList.toggle("hidden", !e.target.checked);
+    });
+
+    // Preset comment chips
+    document.querySelectorAll(".chip[data-preset]").forEach(chip => {
+      chip.addEventListener("click", () => {
+        const lines = PRESETS[chip.dataset.preset] || [];
+        document.getElementById("domCommentsList").value = lines.join("\n");
+      });
+    });
+
+    // Inspect User Posts
+    document.getElementById("inspectUserBtn").addEventListener("click", async () => {
+      const target = document.getElementById("domTargetInput").value.trim();
+      if (!target) return alert("Enter a @username or User ID first");
+      const btn = document.getElementById("inspectUserBtn");
+      btn.disabled = true;
+      btn.textContent = "⏳ Scanning...";
+
+      try {
+        const res = await fetch("/api/gist-bot/inspect-user", {
+          method: "POST",
+          headers: apiHeaders(),
+          body: JSON.stringify({ target })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to scan user");
+
+        const box = document.getElementById("userPreviewBox");
+        box.classList.remove("hidden");
+        document.getElementById("previewUsername").textContent = `@${data.username || target}`;
+        document.getElementById("previewUserId").textContent = `(${data.userId})`;
+        document.getElementById("previewPostCount").textContent = `${data.posts.length} Posts Found`;
+
+        const listEl = document.getElementById("previewPostList");
+        listEl.innerHTML = data.posts.map((p, i) => `
+          <div class="preview-post-item">
+            <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:72%;">
+              <strong>#${i + 1}</strong> ${escapeHtml(p.body || "[Media / Photo Post]")}
+            </div>
+            <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
+              <span style="color:#f472b6;">❤️ ${p.likes || 0}</span>
+              <span style="color:#93c5fd;">💬 ${p.comments || 0}</span>
+              <button type="button" class="btn btn-secondary" style="padding:3px 8px; font-size:0.7rem;" onclick="jumpToPostRaid('${p.id}')">Raid Post</button>
+            </div>
+          </div>
+        `).join("");
+      } catch (err) {
+        alert(err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "🔍 Scan Posts";
+      }
+    });
+
+    window.jumpToPostRaid = function(postId) {
+      document.querySelector('[data-tab="tabSinglePost"]').click();
+      document.getElementById("raidPostId").value = postId;
+    };
+
+    // Launch Dominate User
+    document.getElementById("launchDominateBtn").addEventListener("click", async () => {
+      const target = document.getElementById("domTargetInput").value.trim();
+      if (!target) return alert("Please enter a target @username or User ID");
+
+      const accountLimit = Number(document.getElementById("domAccountLimit").value) || 74;
+      const postLimit = document.getElementById("domPostLimit").value;
+      const doFollow = document.getElementById("domDoFollow").checked;
+      const doLike = document.getElementById("domDoLike").checked;
+      const doRegist = document.getElementById("domDoRegist").checked;
+      const doComment = document.getElementById("domDoComment").checked;
+      const commentCount = Number(document.getElementById("domCommentCount").value) || 15;
+      const commentTargetMode = document.getElementById("domCommentTargetMode").value;
+      const comments = document.getElementById("domCommentsList").value
+        .split("\n")
+        .map(s => s.trim())
+        .filter(Boolean);
+
+      const btn = document.getElementById("launchDominateBtn");
+      btn.disabled = true;
+      btn.textContent = "🚀 Launching Turbo Fleet...";
+
+      try {
+        const res = await fetch("/api/gist-bot/dominate-user", {
+          method: "POST",
+          headers: apiHeaders(),
+          body: JSON.stringify({
+            target,
+            accountLimit,
+            postLimit,
+            doFollow,
+            doLike,
+            doRegist,
+            doComment,
+            commentCount,
+            commentTargetMode,
+            comments
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to launch");
+        fetchFleetStatus();
+      } catch (err) {
+        alert(err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "🚀 Launch Turbo Profile Domination";
+      }
+    });
+
+    // Launch Mass Post
+    document.getElementById("launchMassPostBtn").addEventListener("click", async () => {
+      const rawText = document.getElementById("massPostText").value.trim();
+      if (!rawText) return alert("Please enter at least one post message");
+
+      const accountCount = Number(document.getElementById("massPostAccountCount").value) || 10;
+      const delayMs = Number(document.getElementById("massPostDelay").value) || 0;
+      const mode = document.getElementById("massPostMode").value;
+
+      const btn = document.getElementById("launchMassPostBtn");
+      btn.disabled = true;
+      btn.textContent = "📢 Launching Mass Post...";
+
+      try {
+        const res = await fetch("/api/gist-bot/mass-post", {
+          method: "POST",
+          headers: apiHeaders(),
+          body: JSON.stringify({ rawText, accountCount, delayMs, mode })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to launch mass post");
+        fetchFleetStatus();
+      } catch (err) {
+        alert(err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "📢 Publish Across Fleet Now";
+      }
+    });
+
+    // Launch Single Post Raid
+    document.getElementById("launchRaidPostBtn").addEventListener("click", async () => {
+      const postId = document.getElementById("raidPostId").value.trim();
+      if (!postId) return alert("Enter a Post ID");
+
+      const likeCount = Number(document.getElementById("raidLikeCount").value) || 70;
+      const commentCount = Number(document.getElementById("raidCommentCount").value) || 0;
+      const doLike = document.getElementById("raidDoLike").checked;
+      const doRegist = document.getElementById("raidDoRegist").checked;
+      const comments = document.getElementById("raidCommentsText").value
+        .split("\n")
+        .map(s => s.trim())
+        .filter(Boolean);
+
+      const btn = document.getElementById("launchRaidPostBtn");
+      btn.disabled = true;
+      btn.textContent = "💥 Raiding Post...";
+
+      try {
+        const res = await fetch("/api/gist-bot/single-post-raid", {
+          method: "POST",
+          headers: apiHeaders(),
+          body: JSON.stringify({ postId, likeCount, commentCount, doLike, doRegist, comments })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to raid post");
+        fetchFleetStatus();
+      } catch (err) {
+        alert(err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "💥 Raid Post Now";
+      }
+    });
+
+    // Refresh / Re-Login Fleet
+    document.getElementById("refreshFleetBtn").addEventListener("click", async () => {
+      const btn = document.getElementById("refreshFleetBtn");
+      btn.disabled = true;
+      btn.textContent = "🔄 Verifying & Re-Logging Fleet...";
+      try {
+        const res = await fetch("/api/gist-bot/refresh-fleet", {
+          method: "POST",
+          headers: apiHeaders()
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Refresh failed");
+        alert(`Fleet Check Complete!\nActive Accounts: ${data.activeCount}\nRe-Logged In: ${data.reloggedCount}`);
+        fetchFleetStatus();
+      } catch (err) {
+        alert(err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "🔄 Re-Login / Verify Fleet";
+      }
+    });
+
+    window.stopGistJob = async function(jobId) {
+      await fetch("/api/gist-bot/stop-job", {
+        method: "POST",
+        headers: apiHeaders(),
+        body: JSON.stringify({ jobId })
+      });
+      fetchFleetStatus();
+    };
+
+    function escapeHtml(str) {
+      return String(str || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+    }
+
+    async function fetchFleetStatus() {
+      try {
+        const res = await fetch("/api/gist-bot/fleet", { headers: apiHeaders() });
+        if (res.status === 401) return false;
+        const data = await res.json();
+
+        document.getElementById("statTotalAccounts").textContent = data.totalAccounts || 0;
+        document.getElementById("statReadyAccounts").textContent = data.readyAccounts || 0;
+        document.getElementById("statTotalJobs").textContent = (data.jobs || []).length;
+        document.getElementById("tabFleetCount").textContent = data.totalAccounts || 0;
+
+        // Render fleet pills
+        const fleetEl = document.getElementById("fleetListContainer");
+        fleetEl.innerHTML = (data.accounts || []).map((a, idx) => `
+          <div class="fleet-pill">
+            <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+              <strong>#${idx + 1}</strong> @${escapeHtml(a.username)}
+            </span>
+            <span class="dot ${a.hasCookie ? 'dot-ok' : 'dot-warn'}" title="${a.source}"></span>
+          </div>
+        `).join("");
+
+        // Render jobs
+        const jobsEl = document.getElementById("jobsContainer");
+        const jobs = data.jobs || [];
+        if (jobs.length === 0) {
+          jobsEl.innerHTML = `<div style="text-align:center; padding:30px 10px; color:var(--muted); font-size:0.86rem;">No Gist operations launched yet in this session.</div>`;
+        } else {
+          jobsEl.innerHTML = jobs.map(j => {
+            const pct = j.totalSteps > 0 ? Math.min(100, Math.round((j.completedSteps / j.totalSteps) * 100)) : 100;
+            const badgeClass = j.status === "RUNNING" ? "badge-running" : (j.status === "COMPLETED" ? "badge-completed" : "badge-cancelled");
+            return `
+              <div class="job-card">
+                <div class="job-header">
+                  <div>
+                    <strong style="font-size:0.92rem;">${escapeHtml(j.title)}</strong>
+                    <div style="font-size:0.75rem; color:var(--muted); margin-top:2px;">
+                      ➕ Follows: <strong>${j.stats?.follows || 0}</strong> ·
+                      ❤️ Likes: <strong>${j.stats?.likes || 0}</strong> ·
+                      🔁 Regists: <strong>${j.stats?.regists || 0}</strong> ·
+                      💬 Comments/Posts: <strong>${(j.stats?.comments || 0) + (j.stats?.posts || 0)}</strong>
+                    </div>
+                  </div>
+                  <div style="display:flex; align-items:center; gap:8px;">
+                    <span class="badge ${badgeClass}">${j.status} (${pct}%)</span>
+                    ${j.status === "RUNNING" ? `<button class="btn btn-danger" onclick="stopGistJob('${j.id}')">Stop</button>` : ""}
+                  </div>
+                </div>
+                <div class="progress-bar">
+                  <div class="progress-fill" style="width:${pct}%;"></div>
+                </div>
+                <div class="log-box">${(j.logs || []).slice(-25).map(escapeHtml).join("<br>")}</div>
+              </div>
+            `;
+          }).join("");
+        }
+
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    // Initial check & polling
+    showDashboard();
+    setInterval(() => {
+      if (!document.getElementById("appScreen").classList.contains("hidden")) {
+        fetchFleetStatus();
+      }
+    }, 2000);
+  </script>
+</body>
+</html>
+
