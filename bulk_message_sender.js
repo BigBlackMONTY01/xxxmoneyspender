@@ -76,10 +76,7 @@ async function main() {
   list.sort((a, b) => (b.online ? 1 : 0) - (a.online ? 1 : 0));
 
   // Message template (supports placeholders {name} and {username})
-  const TEMPLATE = process.env.MSG || "Hey {name}! Server-End Money Injector Script Available: 500B / 25 mins.
-Also available: Money & Accs.
-SERIOUS BUYERS OSNLY.
-DM @spacetech_";
+  const TEMPLATE = process.env.MSG || "Hey {name}! Server-End Money Injector Script Available: 500B / 25 mins. Also Available: Money & Stacked Accounts.. SERIOUS BUYERS ONLY.. DM @spacetech_ for enquiries";
 
   console.log("=================================================");
   console.log("    LAGOSLIFE BULK MESSAGE SENDER (@milespete)   ");
