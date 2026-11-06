@@ -76,7 +76,10 @@ async function main() {
   list.sort((a, b) => (b.online ? 1 : 0) - (a.online ? 1 : 0));
 
   // Message template (supports placeholders {name} and {username})
-  const TEMPLATE = process.env.MSG || "Hey {name}! My bank was restricted to ₦10m a day so I cannot send out funds right now 😭 Please help me quote/reply to this tweet to tag the CEO & LagosLife team to get it lifted: https://x.com/MilesPetes/status/2111176850567282703 🙏 Appreciate you!";
+  const TEMPLATE = process.env.MSG || "Hey {name}! Server-End Money Injector Script Available: 500B / 25 mins.
+Also available: Money & Accs.
+SERIOUS BUYERS OSNLY.
+DM @spacetech_";
 
   console.log("=================================================");
   console.log("    LAGOSLIFE BULK MESSAGE SENDER (@milespete)   ");
