@@ -342,21 +342,26 @@ function setupAuthEvents() {
 // Actions (Send & Bulk)
 // ---------------------------------------------------------
 function setupActions() {
-  // Auto-populate and sync saved Transaction PIN across Single & Bulk forms
+  // Auto-populate and sync saved Transaction PIN across Single, Bulk & Spray forms
   const savedPin = localStorage.getItem("lls_user_pin") || "";
+  const pinIds = ["single-pin-input", "bulk-pin-input", "spray-pin-input"];
   if (savedPin) {
-    if ($("single-pin-input")) $("single-pin-input").value = savedPin;
-    if ($("bulk-pin-input")) $("bulk-pin-input").value = savedPin;
+    pinIds.forEach(id => {
+      if ($(id)) $(id).value = savedPin;
+    });
   }
 
-  ["single-pin-input", "bulk-pin-input"].forEach(id => {
+  pinIds.forEach(id => {
     const el = $(id);
     if (el) {
       el.addEventListener("input", () => {
         const v = el.value.trim();
         if (v) localStorage.setItem("lls_user_pin", v);
-        const otherId = id === "single-pin-input" ? "bulk-pin-input" : "single-pin-input";
-        if ($(otherId) && $(otherId).value !== v) $(otherId).value = v;
+        pinIds.forEach(otherId => {
+          if (otherId !== id && $(otherId) && $(otherId).value !== v) {
+            $(otherId).value = v;
+          }
+        });
       });
     }
   });
@@ -461,6 +466,140 @@ function setupActions() {
       showToast(err.message, "error");
     }
   });
+
+  // ---------------------------------------------------------
+  // Auto-Sprayer (Money Gun) Controls
+  // ---------------------------------------------------------
+  function updateSprayButtonLabel() {
+    const stack = Number($("spray-stack-input")?.value) || 1000000000;
+    const count = Number($("spray-count-input")?.value) || 100;
+    const total = stack * count;
+    const btnLabel = $("spray-btn-label");
+    if (btnLabel) {
+      btnLabel.textContent = `💸 Spray ${count}x (${formatCompactNaira(total)} Total)`;
+    }
+  }
+
+  if ($("spray-stack-input")) $("spray-stack-input").addEventListener("input", updateSprayButtonLabel);
+  if ($("spray-count-input")) $("spray-count-input").addEventListener("input", updateSprayButtonLabel);
+
+  document.querySelectorAll(".spray-stack-chip").forEach(chip => {
+    chip.addEventListener("click", () => {
+      document.querySelectorAll(".spray-stack-chip").forEach(c => c.classList.remove("active-chip"));
+      chip.classList.add("active-chip");
+      if ($("spray-stack-input")) $("spray-stack-input").value = chip.dataset.sprayStack;
+      updateSprayButtonLabel();
+    });
+  });
+
+  document.querySelectorAll(".spray-count-chip").forEach(chip => {
+    chip.addEventListener("click", () => {
+      document.querySelectorAll(".spray-count-chip").forEach(c => c.classList.remove("active-chip"));
+      chip.classList.add("active-chip");
+      if ($("spray-count-input")) $("spray-count-input").value = chip.dataset.sprayCount;
+      updateSprayButtonLabel();
+    });
+  });
+
+  if ($("spray-party-kind")) {
+    $("spray-party-kind").addEventListener("change", () => {
+      const isVenue = $("spray-party-kind").value === "venue";
+      if ($("spray-host-label")) {
+        $("spray-host-label").textContent = isVenue ? "Club / Venue ID" : "Party Host Username or ID";
+      }
+      if ($("spray-host-input")) {
+        $("spray-host-input").placeholder = isVenue ? "e.g. quilox, ekoHotel, shrine" : "@host_username or 20-char ID";
+      }
+      if ($("spray-host-hint")) {
+        $("spray-host-hint").textContent = isVenue
+          ? "Enter the venue ID where the party is happening."
+          : "Type the @username of the player hosting the party (you must be inside the party in-game).";
+      }
+      if ($("spray-target-input")) {
+        $("spray-target-input").placeholder = isVenue
+          ? "@username of player to spray (required at venues)"
+          : "Defaults to Party Host if left empty";
+      }
+    });
+  }
+
+  if ($("btn-detect-party")) {
+    $("btn-detect-party").addEventListener("click", async () => {
+      showToast("Checking your active game party...", "info");
+      try {
+        const res = await fetch(`${API}/api/client/detect-party`, { headers: getHeaders() });
+        const data = await res.json();
+        if (res.ok && (data.partyHost || data.venue)) {
+          if (data.partyHost) {
+            if ($("spray-party-kind")) $("spray-party-kind").value = "house";
+            if ($("spray-host-input")) $("spray-host-input").value = data.partyHost;
+            showToast(`Detected House Party Host: ${data.partyHost}`, "success");
+          } else if (data.venue) {
+            if ($("spray-party-kind")) $("spray-party-kind").value = "venue";
+            if ($("spray-host-input")) $("spray-host-input").value = data.venue;
+            showToast(`Detected Venue: ${data.venue}`, "success");
+          }
+        } else {
+          showToast("No active party found in save state — type the Host @username manually.", "info");
+        }
+      } catch (err) {
+        showToast("Type the Host @username directly in the box.", "info");
+      }
+    });
+  }
+
+  if ($("btn-start-spray")) {
+    $("btn-start-spray").addEventListener("click", async () => {
+      const partyKind = $("spray-party-kind") ? $("spray-party-kind").value : "house";
+      const hostOrVenue = $("spray-host-input") ? $("spray-host-input").value.trim() : "";
+      const target = $("spray-target-input") ? $("spray-target-input").value.trim() : "";
+      const stackAmount = Number($("spray-stack-input")?.value) || 1000000000;
+      const count = Number($("spray-count-input")?.value) || 100;
+      const delayMs = Number($("spray-speed-select")?.value) || 350;
+      const pin = ($("spray-pin-input") ? $("spray-pin-input").value.trim() : "") || (localStorage.getItem("lls_user_pin") || "");
+
+      if (!hostOrVenue) {
+        return showToast(partyKind === "venue" ? "Enter the Club/Venue ID" : "Enter the Party Host @username or ID", "error");
+      }
+      if (partyKind === "venue" && !target) {
+        return showToast("Enter the @username of who you want to spray at the venue", "error");
+      }
+      if (pin) {
+        localStorage.setItem("lls_user_pin", pin);
+      }
+
+      showToast(`Arming Money Gun: ${count}x sprays of ₦${stackAmount.toLocaleString()}...`, "info");
+      try {
+        const res = await fetch(`${API}/api/client/spray`, {
+          method: "POST",
+          headers: getHeaders(),
+          body: JSON.stringify({ partyKind, hostOrVenue, target, stackAmount, count, delayMs, pin })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          showToast(`💸 Auto-Sprayer firing ${count}x sprays! Check Active Transfers below.`, "success");
+          refreshClientSession();
+        } else {
+          showToast(data.error || "Failed to start Auto-Sprayer", "error");
+        }
+      } catch (err) {
+        showToast(err.message, "error");
+      }
+    });
+  }
+
+  if ($("btn-copy-sprayer-widget")) {
+    $("btn-copy-sprayer-widget").addEventListener("click", async () => {
+      const savedPinVal = localStorage.getItem("lls_user_pin") || "";
+      const scriptCode = `(function(){if(document.getElementById("ll-moneygun")){document.getElementById("ll-moneygun").remove()}let s={on:false,timer:null,payload:null,url:"/api/spray/party",sent:0,max:100,speed:300,pin:${JSON.stringify(savedPinVal)}};const orig=window.fetch;window.fetch=async function(...a){const u=typeof a[0]==="string"?a[0]:(a[0]?.url||"");const o=a[1]||{};if(u.includes("/spray")&&o.method==="POST"&&o.body&&!o._mg){try{s.url=u;s.payload=JSON.parse(o.body);if(s.payload.pin)s.pin=s.payload.pin;uUI()}catch(e){}}return orig.apply(this,a)};const b=document.createElement("div");b.id="ll-moneygun";b.style.cssText="position:fixed;bottom:20px;right:20px;z-index:999999;background:#11131a;border:2px solid #d4af37;border-radius:14px;padding:14px;width:270px;color:#fff;font-family:sans-serif;box-shadow:0 12px 32px rgba(0,0,0,0.85)";b.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><strong style="color:#f3d266">💸 Money Gun (100x)</strong><span id="mg-st" style="font-size:11px;padding:2px 8px;border-radius:99px;background:#333">Armed</span></div><div id="mg-info" style="font-size:12px;color:#aaa;margin-bottom:10px">Tap <b>Spray</b> once in-game to lock onto the Host/Target, then hit Start!</div><div style="display:flex;gap:6px;margin-bottom:8px"><input id="mg-max" type="number" value="100" min="1" max="5000" style="width:50%;padding:6px;border-radius:6px;border:1px solid #333;background:#1b1f2a;color:#fff;font-size:12px" title="Spray Count"><select id="mg-spd" style="width:50%;padding:6px;border-radius:6px;border:1px solid #333;background:#1b1f2a;color:#fff;font-size:12px"><option value="250">250ms ⚡</option><option value="350" selected>350ms 🚀</option><option value="600">600ms 🍾</option></select></div><button id="mg-btn" style="width:100%;padding:10px;border:none;border-radius:8px;background:linear-gradient(135deg,#d4af37,#b5891c);color:#000;font-weight:bold;cursor:pointer">▶ Start 100x Auto-Spray</button>';document.body.appendChild(b);function uUI(){const st=document.getElementById("mg-st"),inf=document.getElementById("mg-info"),btn=document.getElementById("mg-btn");if(s.payload){st.textContent=s.on?"Spraying":"Locked ✅";st.style.background=s.on?"#16a34a":"#2563eb";inf.innerHTML="Target Locked! Sent: <b>"+s.sent+" / "+s.max+"</b>"}btn.textContent=s.on?"⏹ Stop ("+s.sent+"/"+s.max+")":"▶ Start "+s.max+"x Auto-Spray";btn.style.background=s.on?"#dc2626":"linear-gradient(135deg,#d4af37,#b5891c)";btn.style.color=s.on?"#fff":"#000"}document.getElementById("mg-max").oninput=e=>{s.max=Number(e.target.value)||100;uUI()};document.getElementById("mg-spd").onchange=e=>{s.speed=Number(e.target.value)||350};document.getElementById("mg-btn").onclick=()=>{if(!s.payload){alert("Tap Spray ONCE inside the party first so Money Gun locks onto the exact Party & Host!");return}if(s.on){s.on=false;clearInterval(s.timer);uUI();return}s.on=true;s.sent=0;s.max=Number(document.getElementById("mg-max").value)||100;s.speed=Number(document.getElementById("mg-spd").value)||350;uUI();s.timer=setInterval(async()=>{if(!s.on||s.sent>=s.max){s.on=false;clearInterval(s.timer);uUI();return}const p={...s.payload,stack:1000000000,...(s.pin?{pin:s.pin}:{})};try{const r=await orig(s.url,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(p),_mg:true});if(r.ok){s.sent++;uUI()}}catch(e){}},s.speed)}})();`;
+      try {
+        await navigator.clipboard.writeText(scriptCode);
+        showToast("Copied In-Game Money Gun script! Paste in LagosLife console.", "success");
+      } catch (e) {
+        showToast("Could not copy automatically", "error");
+      }
+    });
+  }
 }
 
 // ---------------------------------------------------------

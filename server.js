@@ -1711,6 +1711,124 @@ function runClientWorker(job, session) {
             job.logs.push(`[${new Date().toLocaleTimeString()}] 🎯 Completed all transfers to @${resolved.username}! ${nextMsg}`);
           }
         }
+      } else if (job.type === "spray" || job.type === "SPRAY") {
+        const delayMs = job.delayMs || 350;
+        const totalSprays = job.totalTxs || 100;
+        const stackVal = job.stackValue !== undefined ? job.stackValue : (job.chunkSize || 1000000000);
+        let count = job.txCount || 0;
+
+        while (count < totalSprays && !workerState.cancelled) {
+          while (workerState.paused && !workerState.cancelled) {
+            await sleep(500);
+          }
+          if (workerState.cancelled) break;
+
+          let spraySuccess = false;
+          let attempts = 0;
+
+          while (!spraySuccess && !workerState.cancelled) {
+            while (workerState.paused && !workerState.cancelled) {
+              await sleep(500);
+            }
+            if (workerState.cancelled) break;
+
+            attempts++;
+            const effectivePin = job.pin || session.account.pin || null;
+            const effectiveCode = job.twoStepCode || session.account.twoStepCode || null;
+
+            const payload = job.rawPayload
+              ? { ...job.rawPayload, ...(effectivePin ? { pin: String(effectivePin).trim() } : {}) }
+              : {
+                  ...(job.partyKind === "venue" ? { at: job.hostOrVenue } : { host: job.hostId }),
+                  to: job.target,
+                  stack: stackVal,
+                  ...(effectivePin ? { pin: String(effectivePin).trim() } : {}),
+                  ...(effectiveCode ? { twoStepCode: String(effectiveCode).trim(), code: String(effectiveCode).trim() } : {})
+                };
+
+            let r;
+            try {
+              const controller = new AbortController();
+              const timer = setTimeout(() => controller.abort(), 12000);
+              const res = await fetch("https://lagoslife.app/api/spray/party", {
+                method: "POST",
+                headers: {
+                  cookie: session.account.cookie,
+                  "content-type": "application/json",
+                  accept: "*/*",
+                  origin: "https://lagoslife.app",
+                  referer: "https://lagoslife.app/",
+                  "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36"
+                },
+                body: JSON.stringify(payload),
+                signal: controller.signal
+              });
+              clearTimeout(timer);
+              const data = await res.json().catch(() => ({}));
+              r = { status: res.status, data };
+            } catch (netErr) {
+              r = { status: 0, error: netErr.message };
+            }
+
+            if (r.status === 200) {
+              spraySuccess = true;
+              if (effectivePin) {
+                session.account.pin = effectivePin;
+                job.pin = effectivePin;
+              }
+              count++;
+              job.txCount = count;
+              const numStack = Number(stackVal) || job.chunkSize || 1000000000;
+              job.remaining = Math.max(0, job.total - count * numStack);
+              job.logs.push(`[${new Date().toLocaleTimeString()}] [${count}/${totalSprays}] 💸 Sprayed ₦${numStack.toLocaleString()} on ${job.targetLabel} ✅`);
+              if (count < totalSprays && !workerState.cancelled) {
+                await waitInterval(delayMs, workerState);
+              }
+            } else if (r.status === 429) {
+              job.logs.push(`[${new Date().toLocaleTimeString()}] ⏳ Spray cooldown (429). Retrying in 1.2s...`);
+              await sleep(1200);
+            } else {
+              const errMsg = r.data?.error || r.data?.message || JSON.stringify(r.data || r.error || `HTTP ${r.status}`);
+              job.logs.push(`[${new Date().toLocaleTimeString()}] ⚠️ Spray notice (${r.status || "Network"}): ${errMsg}`);
+              const errLower = String(errMsg).toLowerCase();
+
+              if (errLower.includes("pin") || errLower.includes("passcode")) {
+                job.status = "PAUSED";
+                job.needsTwoStep = true;
+                job.twoStepType = "pin";
+                if (errLower.includes("incorrect") || errLower.includes("invalid") || errLower.includes("wrong")) {
+                  job.pin = null;
+                  session.account.pin = null;
+                }
+                job.logs.push(`[${new Date().toLocaleTimeString()}] 🛡️ Transaction PIN required: "${errMsg}". Enter your PIN on the card to resume spraying.`);
+                activeJobs.delete(job.id);
+                return;
+              }
+
+              if (errLower.includes("two-step") || errLower.includes("two step") || errLower.includes("2fa") || errLower.includes("verification") || errLower.includes("code required")) {
+                job.status = "PAUSED";
+                job.needsTwoStep = true;
+                job.twoStepType = "2fa";
+                job.twoStepCode = null;
+                session.account.twoStepCode = null;
+                job.logs.push(`[${new Date().toLocaleTimeString()}] 🛡️ Two-step 2FA required: "${errMsg}". Enter your 6-digit 2FA code to resume spraying.`);
+                activeJobs.delete(job.id);
+                return;
+              }
+
+              if (r.status === 400 || r.status === 401 || r.status === 403 || r.status === 404 || r.status === 409) {
+                job.logs.push(`[${new Date().toLocaleTimeString()}] ⏸️ Spray paused (${r.status}): ${errMsg}. Make sure the party is active & you are inside, then tap Resume.`);
+                job.status = "PAUSED";
+                activeJobs.delete(job.id);
+                return;
+              }
+
+              const backoffSec = Math.min(3 + attempts * 2, 15);
+              job.logs.push(`[${new Date().toLocaleTimeString()}] 🔄 Retrying spray in ${backoffSec}s...`);
+              await sleep(backoffSec * 1000);
+            }
+          }
+        }
       } else {
         const delayMs = job.delayMs || 400;
         job.chunkSize = Math.min(job.chunkSize || MAX_TRANSFER_CHUNK, MAX_TRANSFER_CHUNK);
@@ -2131,19 +2249,161 @@ app.post("/api/client/resume", async (req, res) => {
     }
   }
 
-  // Enforce proper 100B chunks on resume
-  job.chunkSize = Math.min(job.chunkSize || MAX_TRANSFER_CHUNK, MAX_TRANSFER_CHUNK);
-  if (job.type !== "batch" && job.type !== "BATCH") {
-    job.totalTxs = Math.ceil(job.total / job.chunkSize);
+  // Enforce proper 100B chunks on resume (skip for spray jobs so stack size & count stay intact)
+  if (job.type !== "spray" && job.type !== "SPRAY") {
+    job.chunkSize = Math.min(job.chunkSize || MAX_TRANSFER_CHUNK, MAX_TRANSFER_CHUNK);
+    if (job.type !== "batch" && job.type !== "BATCH") {
+      job.totalTxs = Math.ceil(job.total / job.chunkSize);
+    }
   }
   job.status = "RUNNING";
-  job.logs.push(`[${new Date().toLocaleTimeString()}] ▶️ Transfer resumed.`);
+  job.logs.push(`[${new Date().toLocaleTimeString()}] ▶️ ${job.type === "spray" ? "Auto-Sprayer" : "Transfer"} resumed.`);
   if (activeJobs.has(jobId)) {
     activeJobs.get(jobId).paused = false;
-  } else if (job.remaining > 0) {
+  } else if (job.remaining > 0 || (job.type === "spray" && (job.txCount || 0) < (job.totalTxs || 100))) {
     runClientWorker(job, session);
   }
   res.json({ success: true, message: "Transfer resumed", job });
+});
+
+// Client Auto-Sprayer (Party Money Gun)
+app.post("/api/client/spray", async (req, res) => {
+  const token = req.headers["x-client-token"] || req.query.token;
+  if (!token || !clientSessions.has(token)) return res.status(401).json({ error: "Unauthenticated" });
+
+  const session = clientSessions.get(token);
+  const { partyKind, hostOrVenue, target, stackAmount, count, delayMs, pin, twoStepCode, rawPayload } = req.body;
+
+  const cleanPin = pin ? String(pin).trim() : (session.account.pin || null);
+  const cleanTwoStep = twoStepCode ? String(twoStepCode).trim() : (session.account.twoStepCode || null);
+  if (cleanPin) session.account.pin = cleanPin;
+  if (cleanTwoStep) session.account.twoStepCode = cleanTwoStep;
+
+  let parsedRaw = null;
+  if (rawPayload && typeof rawPayload === "object") {
+    parsedRaw = rawPayload;
+  } else if (typeof rawPayload === "string" && rawPayload.trim().startsWith("{")) {
+    try {
+      parsedRaw = JSON.parse(rawPayload.trim());
+    } catch (e) {
+      return res.status(400).json({ error: "Invalid Raw JSON payload format" });
+    }
+  }
+
+  const kind = partyKind === "venue" ? "venue" : "house";
+  let resolvedHostId = "";
+  let resolvedHostLabel = "";
+  let resolvedTargetId = "";
+  let resolvedTargetLabel = "";
+
+  if (parsedRaw) {
+    resolvedTargetId = parsedRaw.to || "party-target";
+    resolvedTargetLabel = parsedRaw.to ? `ID: ${parsedRaw.to}` : "Party Target";
+    resolvedHostId = parsedRaw.host || parsedRaw.at || "party";
+    resolvedHostLabel = parsedRaw.host ? `Host ${parsedRaw.host}` : `Venue ${parsedRaw.at || ""}`;
+  } else {
+    if (!hostOrVenue || !String(hostOrVenue).trim()) {
+      return res.status(400).json({ error: kind === "venue" ? "Club / Venue ID is required" : "Party Host @username or ID is required" });
+    }
+
+    if (kind === "house") {
+      const hostRes = await resolveTargetIdAsync(String(hostOrVenue).trim(), session.account.cookie);
+      if (hostRes.error || !hostRes.id) {
+        return res.status(400).json({ error: `Could not resolve Party Host "${hostOrVenue}": ${hostRes.error || "Not found"}` });
+      }
+      resolvedHostId = hostRes.id;
+      resolvedHostLabel = `@${hostRes.username || String(hostOrVenue).replace(/^@/, "")}`;
+    } else {
+      resolvedHostId = String(hostOrVenue).trim();
+      resolvedHostLabel = resolvedHostId;
+    }
+
+    const targetRaw = target && String(target).trim() ? String(target).trim() : "";
+    if (!targetRaw && kind === "house") {
+      resolvedTargetId = resolvedHostId;
+      resolvedTargetLabel = `${resolvedHostLabel} (Host)`;
+    } else if (!targetRaw && kind === "venue") {
+      return res.status(400).json({ error: "Please enter the @username or ID of the person to spray at the venue" });
+    } else {
+      const targRes = await resolveTargetIdAsync(targetRaw, session.account.cookie);
+      if (targRes.error || !targRes.id) {
+        return res.status(400).json({ error: `Could not resolve spray target "${targetRaw}": ${targRes.error || "Not found"}` });
+      }
+      resolvedTargetId = targRes.id;
+      resolvedTargetLabel = `@${targRes.username || targetRaw.replace(/^@/, "")}`;
+    }
+  }
+
+  const totalSprays = Math.max(1, Math.min(Number(count) || 100, 10000));
+  const numericStack = parsedRaw && parsedRaw.stack !== undefined
+    ? (Number(parsedRaw.stack) || 1000000000)
+    : Math.max(1000, Math.min(Number(stackAmount) || 1000000000, 1000000000));
+  const stackValue = parsedRaw && parsedRaw.stack !== undefined ? parsedRaw.stack : numericStack;
+  const totalNaira = totalSprays * numericStack;
+  const speedMs = Math.max(100, Number(delayMs) || 350);
+
+  const jobId = `cjob_spray_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+  const job = {
+    id: jobId,
+    type: "spray",
+    partyKind: kind,
+    hostOrVenue: resolvedHostId,
+    hostId: resolvedHostId,
+    hostLabel: resolvedHostLabel,
+    target: resolvedTargetId,
+    targetLabel: `💸 ${resolvedTargetLabel}`,
+    stackValue,
+    rawPayload: parsedRaw,
+    chunkSize: numericStack,
+    totalTxs: totalSprays,
+    txCount: 0,
+    total: totalNaira,
+    remaining: totalNaira,
+    delayMs: speedMs,
+    pin: cleanPin,
+    twoStepCode: cleanTwoStep,
+    status: "RUNNING",
+    createdAt: new Date().toISOString(),
+    logs: [
+      `[${new Date().toLocaleTimeString()}] 💸 Money Gun armed: ${totalSprays}x sprays of ₦${numericStack.toLocaleString()} (Total: ₦${totalNaira.toLocaleString()}) on ${resolvedTargetLabel}`,
+      ...(cleanPin ? [`[${new Date().toLocaleTimeString()}] 🔒 Transaction PIN attached for automatic non-stop spraying.`] : [])
+    ]
+  };
+
+  session.jobs.unshift(job);
+  runClientWorker(job, session);
+  res.json({ success: true, message: "Auto-Sprayer started!", job });
+});
+
+// Auto-detect active party / venue from live /api/save state
+app.get("/api/client/detect-party", async (req, res) => {
+  const token = req.headers["x-client-token"] || req.query.token;
+  if (!token || !clientSessions.has(token)) return res.status(401).json({ error: "Unauthenticated" });
+  const session = clientSessions.get(token);
+
+  try {
+    const r = await fetch("https://lagoslife.app/api/save", {
+      headers: {
+        cookie: session.account.cookie,
+        accept: "application/json",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36"
+      }
+    });
+    if (!r.ok) return res.status(r.status).json({ error: "Could not read game state" });
+    const data = await r.json();
+    const g = data?.game || {};
+    const partyHost = g.visitingHouse || g.partyHost || g.atHouse || g.party?.host || null;
+    const venue = g.venue || g.atVenue || g.location || g.party?.venue || null;
+    return res.json({
+      success: true,
+      partyHost,
+      venue,
+      username: data?.account?.username || session.account.username,
+      balance: g.money ?? 0
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
 });
 
 // Client Resend 2FA Email Code
