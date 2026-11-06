@@ -19,62 +19,62 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const BROADCAST_MESSAGES = [
   {
     theme: 'Official Service Announcement',
-    text: '🌍 Worldwide Broadcast! The Server-End Money Injector is available! Generate 500B every 35 minutes. 💰 Money and accounts also available. DM @spacetech!'
+    text: '🌍 Worldwide Broadcast! The Server-End Money Injector is available! Generate 500B every 35 minutes. 💰 Money and accounts also available. DM @spacetech_!'
   },
   {
     theme: 'Money Injector Showcase',
-    text: '500B EVERY 35 MINUTES! 💸 Get access to the Server-End Money Injector today. Serious buyers only! Contact @spacetech.'
+    text: '500B EVERY 35 MINUTES! 💸 Get access to the Server-End Money Injector today. Serious buyers only! Contact @spacetech_.'
   },
   {
     theme: 'Exclusive Money Deals',
-    text: 'Looking for in-game money? We have money packages, account deals and our exclusive Server-End Money Injector available! 💰 DM @spacetech.'
+    text: 'Looking for in-game money? We have money packages, account deals and our exclusive Server-End Money Injector available! 💰 DM @spacetech_.'
   },
   {
     theme: 'Account Marketplace',
-    text: 'Need a new game account? We also have accounts available alongside our money services. Get in touch with @spacetech! 🌍'
+    text: 'Need a new game account? We also have accounts available alongside our money services. Get in touch with @spacetech_! 🌍'
   },
   {
     theme: 'Fast Money Generation',
-    text: 'Why settle for less? Generate 500B every 35 minutes with our Server-End Money Injector! 🚀 Serious inquiries only. DM @spacetech.'
+    text: 'Why settle for less? Generate 500B every 35 minutes with our Server-End Money Injector! 🚀 Serious inquiries only. DM @spacetech_.'
   },
   {
     theme: 'Serious Buyers Only',
-    text: 'Exclusive offers for serious buyers! Server-End Money Injector, in-game money and accounts available. No time wasters. 📩 @spacetech'
+    text: 'Exclusive offers for serious buyers! Server-End Money Injector, in-game money and accounts available. No time wasters. 📩 @spacetech_'
   },
   {
     theme: 'Worldwide Availability',
-    text: '🌍 Worldwide availability! Our Server-End Money Injector generates 500B every 35 minutes. Money and accounts also available. Contact @spacetech!'
+    text: '🌍 Worldwide availability! Our Server-End Money Injector generates 500B every 35 minutes. Money and accounts also available. Contact @spacetech_!'
   },
   {
     theme: 'Premium Services',
-    text: 'Looking for premium in-game services? Explore our Server-End Money Injector, money packages and account offers. 💎 DM @spacetech!'
+    text: 'Looking for premium in-game services? Explore our Server-End Money Injector, money packages and account offers. 💎 DM @spacetech_!'
   },
   {
     theme: 'Money & Accounts',
-    text: '💰 MONEY AVAILABLE. ACCOUNTS AVAILABLE. SERVER-END INJECTOR AVAILABLE. 500B every 35 minutes! Everything in one place. DM @spacetech!'
+    text: '💰 MONEY AVAILABLE. ACCOUNTS AVAILABLE. SERVER-END INJECTOR AVAILABLE. 500B every 35 minutes! Everything in one place. DM @spacetech_!'
   },
   {
     theme: 'Final Call',
-    text: 'Your next big in-game upgrade starts here! 🔥 500B every 35 minutes with our Server-End Money Injector. Money and accounts also available. @spacetech'
+    text: 'Your next big in-game upgrade starts here! 🔥 500B every 35 minutes with our Server-End Money Injector. Money and accounts also available. @spacetech_'
   }
 ];
 
 const COMMENTS_POOL = [
-  '500B every 35 minutes? 👀 @spacetech',
-  'Who else is interested in this? 🔥',
-  'Money and accounts available too? 💰',
-  'Serious buyers should definitely check this out!',
-  'Worldwide broadcast! 🌍',
-  'DM @spacetech for more information.',
-  'That 500B generation rate is crazy! 🚀',
-  'Anyone looking for accounts? Apparently they have those too.',
-  'Server-End services available. Check with @spacetech!',
-  'Interested buyers, make your inquiries! 📩',
-  '500B in 35 minutes. That's a serious offer.',
-  'Check out @spacetech for details! 💎',
-  'Money injector and accounts in one place. 🔥',
-  'Serious inquiries only, no time wasters!',
-  'Worldwide availability! 🌍💰'
+  'wait, 500B every 35 minutes?',
+  'how does the script actually work?',
+  'is there a demo available?',
+  'how long to get to 1 trillion?',
+  'are accounts available separately?',
+  'how much are you selling it for?',
+  'does it work on the latest version?',
+  'where can I get more information?',
+  'is support included?',
+  'interested. sent @spacetech_ dm.',
+  'what are the requirements?',
+  'can someone explain the server-end part?',
+  'is this available worldwide?',
+  'do you have different account options?',
+  'any proof of how it works?'
 ];
 
 
