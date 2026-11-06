@@ -125,7 +125,7 @@ async function main() {
   log('\n📢 STEP 1: DISPATCHING UNIQUE LLDC GISTS ACROSS ALL BURNERS...');
   for (let i = 0; i < burners.length; i++) {
     const burner = burners[i];
-    const postConfig = GIST_CAMPAIGN_POSTS[i % GIST_CAMPAIGN_POSTS.length];
+    const postConfig = BROADCAST_MESSAGES[i % BROADCAST_MESSAGES.length];
 
     // Check if burner already posted
     const existing = state.posts.find(p => p.author === burner.user);
