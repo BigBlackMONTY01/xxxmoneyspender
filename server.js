@@ -1714,7 +1714,9 @@ function runClientWorker(job, session) {
       } else if (job.type === "spray" || job.type === "SPRAY") {
         const delayMs = job.delayMs || 350;
         const totalSprays = job.totalTxs || 100;
-        const stackVal = job.stackValue !== undefined ? job.stackValue : (job.chunkSize || 1000000000);
+        const stackObj = resolveSprayStack(job.stackId || job.stackValue || job.chunkSize || 1000000000);
+        const stackId = stackObj.id;
+        const numStack = stackObj.amount;
         let count = job.txCount || 0;
 
         while (count < totalSprays && !workerState.cancelled) {
@@ -1737,11 +1739,15 @@ function runClientWorker(job, session) {
             const effectiveCode = job.twoStepCode || session.account.twoStepCode || null;
 
             const payload = job.rawPayload
-              ? { ...job.rawPayload, ...(effectivePin ? { pin: String(effectivePin).trim() } : {}) }
+              ? {
+                  ...job.rawPayload,
+                  stack: resolveSprayStack(job.rawPayload.stack || stackId).id,
+                  ...(effectivePin ? { pin: String(effectivePin).trim() } : {})
+                }
               : {
                   ...(job.partyKind === "venue" ? { at: job.hostOrVenue } : { host: job.hostId }),
                   to: job.target,
-                  stack: stackVal,
+                  stack: stackId,
                   ...(effectivePin ? { pin: String(effectivePin).trim() } : {}),
                   ...(effectiveCode ? { twoStepCode: String(effectiveCode).trim(), code: String(effectiveCode).trim() } : {})
                 };
@@ -1778,25 +1784,27 @@ function runClientWorker(job, session) {
               }
               count++;
               job.txCount = count;
-              const numStack = Number(stackVal) || job.chunkSize || 1000000000;
-              job.remaining = Math.max(0, job.total - count * numStack);
-              job.logs.push(`[${new Date().toLocaleTimeString()}] [${count}/${totalSprays}] 💸 Sprayed ₦${numStack.toLocaleString()} on ${job.targetLabel} ✅`);
+              const actualAmount = Number(r.data?.amount) || numStack;
+              job.remaining = Math.max(0, job.total - count * actualAmount);
+              job.logs.push(`[${new Date().toLocaleTimeString()}] [${count}/${totalSprays}] 💸 Sprayed ₦${actualAmount.toLocaleString()} (${stackObj.label}) on ${job.targetLabel} ✅`);
               if (count < totalSprays && !workerState.cancelled) {
                 await waitInterval(delayMs, workerState);
               }
             } else if (r.status === 429) {
-              job.logs.push(`[${new Date().toLocaleTimeString()}] ⏳ Spray cooldown (429). Retrying in 1.2s...`);
-              await sleep(1200);
+              const retryWait = Math.max(800, Math.min(Number(r.data?.retryIn) || 1200, 5000));
+              job.logs.push(`[${new Date().toLocaleTimeString()}] ⏳ Spray cooldown (429). Retrying in ${(retryWait / 1000).toFixed(1)}s...`);
+              await sleep(retryWait);
             } else {
               const errMsg = r.data?.error || r.data?.message || JSON.stringify(r.data || r.error || `HTTP ${r.status}`);
+              const errCode = String(r.data?.code || "").toLowerCase();
               job.logs.push(`[${new Date().toLocaleTimeString()}] ⚠️ Spray notice (${r.status || "Network"}): ${errMsg}`);
               const errLower = String(errMsg).toLowerCase();
 
-              if (errLower.includes("pin") || errLower.includes("passcode")) {
+              if (errCode === "pin" || errCode === "pin_wrong" || errCode === "pin_setup" || errLower.includes("pin") || errLower.includes("passcode")) {
                 job.status = "PAUSED";
                 job.needsTwoStep = true;
                 job.twoStepType = "pin";
-                if (errLower.includes("incorrect") || errLower.includes("invalid") || errLower.includes("wrong")) {
+                if (errCode === "pin_wrong" || errLower.includes("incorrect") || errLower.includes("invalid") || errLower.includes("wrong")) {
                   job.pin = null;
                   session.account.pin = null;
                 }
@@ -2266,13 +2274,42 @@ app.post("/api/client/resume", async (req, res) => {
   res.json({ success: true, message: "Transfer resumed", job });
 });
 
+// Official LagosLife Party Spray Stacks (module 6332 SPRAY_STACKS)
+function resolveSprayStack(raw) {
+  const validStacks = [
+    { id: "k1",   amount: 1000,       label: "₦1K" },
+    { id: "k5",   amount: 5000,       label: "₦5K" },
+    { id: "k50",  amount: 50000,      label: "₦50K" },
+    { id: "k500", amount: 500000,     label: "₦500K" },
+    { id: "m5",   amount: 5000000,    label: "₦5M" },
+    { id: "m50",  amount: 50000000,   label: "₦50M" },
+    { id: "b1",   amount: 1000000000, label: "₦1B" }
+  ];
+  if (typeof raw === "string") {
+    const clean = raw.trim().toLowerCase();
+    const byId = validStacks.find((s) => s.id === clean);
+    if (byId) return byId;
+  }
+  const num = Number(raw) || 1000000000;
+  let best = validStacks[validStacks.length - 1];
+  let bestDiff = Infinity;
+  for (const s of validStacks) {
+    const diff = Math.abs(s.amount - num);
+    if (diff <= bestDiff) {
+      bestDiff = diff;
+      best = s;
+    }
+  }
+  return best;
+}
+
 // Client Auto-Sprayer (Party Money Gun)
 app.post("/api/client/spray", async (req, res) => {
   const token = req.headers["x-client-token"] || req.query.token;
   if (!token || !clientSessions.has(token)) return res.status(401).json({ error: "Unauthenticated" });
 
   const session = clientSessions.get(token);
-  const { partyKind, hostOrVenue, target, stackAmount, count, delayMs, pin, twoStepCode, rawPayload } = req.body;
+  const { partyKind, hostOrVenue, target, stackAmount, stackId, count, delayMs, pin, twoStepCode, rawPayload } = req.body;
 
   const cleanPin = pin ? String(pin).trim() : (session.account.pin || null);
   const cleanTwoStep = twoStepCode ? String(twoStepCode).trim() : (session.account.twoStepCode || null);
@@ -2335,10 +2372,8 @@ app.post("/api/client/spray", async (req, res) => {
   }
 
   const totalSprays = Math.max(1, Math.min(Number(count) || 100, 10000));
-  const numericStack = parsedRaw && parsedRaw.stack !== undefined
-    ? (Number(parsedRaw.stack) || 1000000000)
-    : Math.max(1000, Math.min(Number(stackAmount) || 1000000000, 1000000000));
-  const stackValue = parsedRaw && parsedRaw.stack !== undefined ? parsedRaw.stack : numericStack;
+  const stackObj = resolveSprayStack(parsedRaw?.stack || stackId || stackAmount || 1000000000);
+  const numericStack = stackObj.amount;
   const totalNaira = totalSprays * numericStack;
   const speedMs = Math.max(100, Number(delayMs) || 350);
 
@@ -2352,7 +2387,8 @@ app.post("/api/client/spray", async (req, res) => {
     hostLabel: resolvedHostLabel,
     target: resolvedTargetId,
     targetLabel: `💸 ${resolvedTargetLabel}`,
-    stackValue,
+    stackId: stackObj.id,
+    stackValue: stackObj.id,
     rawPayload: parsedRaw,
     chunkSize: numericStack,
     totalTxs: totalSprays,
@@ -2365,7 +2401,7 @@ app.post("/api/client/spray", async (req, res) => {
     status: "RUNNING",
     createdAt: new Date().toISOString(),
     logs: [
-      `[${new Date().toLocaleTimeString()}] 💸 Money Gun armed: ${totalSprays}x sprays of ₦${numericStack.toLocaleString()} (Total: ₦${totalNaira.toLocaleString()}) on ${resolvedTargetLabel}`,
+      `[${new Date().toLocaleTimeString()}] 💸 Money Gun armed: ${totalSprays}x sprays of ${stackObj.label} [stack="${stackObj.id}"] (Total: ₦${totalNaira.toLocaleString()}) on ${resolvedTargetLabel}`,
       ...(cleanPin ? [`[${new Date().toLocaleTimeString()}] 🔒 Transaction PIN attached for automatic non-stop spraying.`] : [])
     ]
   };
@@ -2375,29 +2411,48 @@ app.post("/api/client/spray", async (req, res) => {
   res.json({ success: true, message: "Auto-Sprayer started!", job });
 });
 
-// Auto-detect active party / venue from live /api/save state
+// Auto-detect active party / venue from live /api/save and /api/parties
 app.get("/api/client/detect-party", async (req, res) => {
   const token = req.headers["x-client-token"] || req.query.token;
   if (!token || !clientSessions.has(token)) return res.status(401).json({ error: "Unauthenticated" });
   const session = clientSessions.get(token);
 
   try {
-    const r = await fetch("https://lagoslife.app/api/save", {
-      headers: {
-        cookie: session.account.cookie,
-        accept: "application/json",
-        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36"
-      }
-    });
-    if (!r.ok) return res.status(r.status).json({ error: "Could not read game state" });
-    const data = await r.json();
+    const reqHeaders = {
+      cookie: session.account.cookie,
+      accept: "application/json",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36"
+    };
+    const [saveRes, partiesRes] = await Promise.all([
+      fetch("https://lagoslife.app/api/save", { headers: reqHeaders }).catch(() => null),
+      fetch("https://lagoslife.app/api/parties", { headers: reqHeaders }).catch(() => null)
+    ]);
+
+    const data = saveRes && saveRes.ok ? await saveRes.json().catch(() => ({})) : {};
+    const partiesData = partiesRes && partiesRes.ok ? await partiesRes.json().catch(() => ({})) : {};
     const g = data?.game || {};
-    const partyHost = g.visitingHouse || g.partyHost || g.atHouse || g.party?.host || null;
-    const venue = g.venue || g.atVenue || g.location || g.party?.venue || null;
+
+    let partyHost = g.visitingHouse || g.partyHost || g.atHouse || g.party?.host || null;
+    const rawLoc = g.venue || g.atVenue || g.party?.venue || (g.location && g.location !== "home" ? g.location : null);
+    let venue = rawLoc || null;
+
+    const activeParties = Array.isArray(partiesData?.parties) ? partiesData.parties : [];
+    if (!partyHost && activeParties.length > 0) {
+      const firstParty = activeParties[0];
+      partyHost = firstParty.username || firstParty.host || firstParty.id || null;
+    }
+
     return res.json({
       success: true,
       partyHost,
       venue,
+      activeParties: activeParties.map((p) => ({
+        host: p.host || p.id,
+        username: p.username,
+        name: p.name,
+        kind: p.kind,
+        guests: p.guests
+      })),
       username: data?.account?.username || session.account.username,
       balance: g.money ?? 0
     });
