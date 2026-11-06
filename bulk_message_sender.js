@@ -1,7 +1,7 @@
 import fs from "node:fs";
 
 // Session Cookie for @blaqsebastian
-const COOKIE = "ll_dev=6a3s6k3232505u2d; ll_session=339d61047977ccde5cdc1ff6217ed6992e93fd8e2d842193fa95b54129d8f3fd; ll_pass=eyJpIjoiYmQ3NzI5ZmExZWVhNDJhMGJlNDAiLCJ1IjoiZGF0aWVtbzAwMSIsIm4iOiJEYXRpZW1vIiwidCI6IlpWN2Vzb21PODdpWjFKTzEiLCJlIjoxNzkzMTA4NTM4NjE0fQ.H6lpEoOLgwIRRqda7G0FFZ7qPDYkTkwCSPqOiPMqr1E";
+const COOKIE = "ll_dev=5955050a0q2k4c2u; ll_session=3096e9cc12ae3fb82426faf9cf8d489b19781badf54804c906cbcb1be5def9cc; ll_pass=eyJpIjoiMDU3OTY5MDk5NzE0NDc1NWE5NzMiLCJ1IjoiZGFueWVrbyIsIm4iOiJEYW5ueSIsInQiOiJKX3VMUVZqVmZ0emZvRi00IiwiZSI6MTc5Mjc4MjU1NjA0NH0.iff81aaZT6kShru0onoOFa_kIdSSZmneKuFl24BX6Aw";
 
 const BASE_URL = "https://lagoslife.app/api/messages";
 const STATE_FILE = "./bulk_message_state.json";
