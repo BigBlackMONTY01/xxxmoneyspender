@@ -587,7 +587,13 @@ function setupActions() {
           headers: getHeaders(),
           body: JSON.stringify({ partyKind, hostOrVenue, target, stackAmount, stackId, count, delayMs, pin })
         });
-        const data = await res.json();
+        const rawText = await res.text();
+        let data = {};
+        try {
+          data = rawText ? JSON.parse(rawText) : {};
+        } catch {
+          throw new Error(`Server error (${res.status}): Please refresh or wait 10s if Render is restarting.`);
+        }
         if (res.ok) {
           showToast(`💸 Auto-Sprayer firing ${count}x sprays! Check Active Transfers below.`, "success");
           refreshClientSession();

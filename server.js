@@ -144,7 +144,10 @@ const USERNAME_MAP = {
   "kvngdre": "1ab3a45045544574afe8",
   "dre": "1ab3a45045544574afe8",
   "bigola2823": "6e3c4bdaac6f4765ba52",
-  "mr_ace": "6e3c4bdaac6f4765ba52"
+  "mr_ace": "6e3c4bdaac6f4765ba52",
+  "_iamking_": "7b17dab5715d43c1b042",
+  "iamking": "7b17dab5715d43c1b042",
+  "annie05": "156cda27568c4876b9ec"
 };
 
 // Fast Offline Contacts Cache (26,000+ players loaded from disk)
@@ -170,24 +173,30 @@ const CONTACTS_MAP = new Map();
 
 async function resolveTargetIdAsync(input, cookie) {
   if (!input) return null;
-  // Strip list markers like "1. ", "- ", bullets, quotes and trim
-  let trimmed = String(input).trim().replace(/^[\d\.\-\*\•\)\(\]\"\'\s]+/, "").replace(/[\"\'\,]/g, "").trim();
+  // Strip numbered list prefixes like "1. " or "2) " and surrounding quotes/spaces without eating usernames or hex IDs
+  let trimmed = String(input)
+    .trim()
+    .replace(/^\s*\d+[\.\)]\s+/, "")
+    .replace(/^[\-\*\•\)\(\]\"\'\s]+/, "")
+    .replace(/[\"\'\,\s]+$/g, "")
+    .trim();
 
-  // 1. Check if URL with ?with=...
-  const urlMatch = trimmed.match(/[?&]with=([a-f0-9]{16,})/i);
+  // 1. Check if URL with ?with=... or ?host=... or ?of=...
+  const urlMatch = trimmed.match(/[?&](?:with|host|of)=([a-f0-9]{16,})/i);
   if (urlMatch) return { id: urlMatch[1], username: urlMatch[1] };
 
   // 2. Check if player profile URL
   const profileMatch = trimmed.match(/lagoslife\.app\/.*?([a-f0-9]{16,})/i);
   if (profileMatch) return { id: profileMatch[1], username: profileMatch[1] };
 
-  // 3. Check if exact 20-character hex ID
-  if (/^[a-f0-9]{20}$/i.test(trimmed)) {
-    return { id: trimmed, username: trimmed };
+  // 3. Check if exact 20-character hex ID (with or without leading @)
+  const hexCandidate = trimmed.replace(/^@/, "");
+  if (/^[a-f0-9]{20}$/i.test(hexCandidate)) {
+    return { id: hexCandidate.toLowerCase(), username: hexCandidate.toLowerCase() };
   }
 
   // 4. Check known static map
-  const clean = trimmed.toLowerCase().replace(/^@/, "");
+  const clean = hexCandidate.toLowerCase();
   if (USERNAME_MAP[clean]) {
     return { id: USERNAME_MAP[clean], username: clean };
   }
@@ -198,27 +207,85 @@ async function resolveTargetIdAsync(input, cookie) {
     return { id: c.id, username: c.username, name: c.name };
   }
 
-  // 6. Query LagosLife API live to resolve username
-  try {
-    const res = await fetch(`https://lagoslife.app/api/players?q=${encodeURIComponent(clean)}`, {
-      headers: {
-        "accept": "application/json",
-        "cookie": cookie || "",
-        "user-agent": "Mozilla/5.0"
+  // 6. Query LagosLife APIs live to resolve username (including underscore-stripped fallback)
+  const searchTerms = [clean];
+  const strippedUnderscore = clean.replace(/^_+|_+$/g, "");
+  if (strippedUnderscore && strippedUnderscore !== clean) {
+    searchTerms.push(strippedUnderscore);
+  }
+
+  const reqHeaders = {
+    "accept": "application/json",
+    "cookie": cookie || "",
+    "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36"
+  };
+
+  for (const term of searchTerms) {
+    try {
+      const res = await fetch(`https://lagoslife.app/api/players?q=${encodeURIComponent(term)}`, { headers: reqHeaders });
+      if (res.ok) {
+        const data = await res.json().catch(() => ({}));
+        const players = data.players || [];
+        const exact = players.find(p => (p.username || "").toLowerCase() === clean);
+        const match = exact || (term === clean ? players[0] : null);
+        if (match && match.id) {
+          CONTACTS_MAP.set(clean, { id: match.id, username: match.username, name: match.name });
+          return { id: match.id, username: match.username, name: match.name, avatar: match.look };
+        }
       }
-    });
-    if (res.ok) {
-      const data = await res.json();
-      const players = data.players || [];
-      const match = players.find(p => (p.username || "").toLowerCase() === clean) || players[0];
-      if (match) {
-        CONTACTS_MAP.set(clean, { id: match.id, username: match.username, name: match.name });
-        return { id: match.id, username: match.username, name: match.name, avatar: match.look };
+    } catch (err) {
+      console.error("Resolve /api/players error:", err.message);
+    }
+
+    try {
+      const resBills = await fetch(`https://lagoslife.app/api/bills?people=1&q=${encodeURIComponent(term)}`, { headers: reqHeaders });
+      if (resBills.ok) {
+        const bData = await resBills.json().catch(() => ({}));
+        const people = bData.people || bData.players || bData.users || [];
+        const exact = people.find(p => (p.username || "").toLowerCase() === clean);
+        const match = exact || (term === clean ? people[0] : null);
+        if (match && match.id) {
+          CONTACTS_MAP.set(clean, { id: match.id, username: match.username, name: match.name });
+          return { id: match.id, username: match.username, name: match.name, avatar: match.look };
+        }
+      }
+    } catch {}
+  }
+
+  // 7. Check active parties list (/api/parties) and current save state (/api/save)
+  try {
+    const pRes = await fetch("https://lagoslife.app/api/parties", { headers: reqHeaders });
+    if (pRes.ok) {
+      const pData = await pRes.json().catch(() => ({}));
+      const parties = Array.isArray(pData.parties) ? pData.parties : [];
+      const found = parties.find(
+        p => (p.username || "").toLowerCase() === clean || (p.host || "").toLowerCase() === clean || (p.id || "").toLowerCase() === clean
+      );
+      if (found && (found.host || found.id)) {
+        const hid = found.host || found.id;
+        const huser = found.username || clean;
+        CONTACTS_MAP.set(clean, { id: hid, username: huser, name: found.name });
+        return { id: hid, username: huser, name: found.name };
       }
     }
-  } catch (err) {
-    console.error("Resolve error:", err.message);
-  }
+  } catch {}
+
+  try {
+    const sRes = await fetch("https://lagoslife.app/api/save", { headers: reqHeaders });
+    if (sRes.ok) {
+      const sData = await sRes.json().catch(() => ({}));
+      const pool = [
+        ...(Array.isArray(sData.players) ? sData.players : []),
+        ...(Array.isArray(sData.guests) ? sData.guests : []),
+        ...(sData.me ? [sData.me] : [])
+      ];
+      const found = pool.find(p => (p.username || "").toLowerCase() === clean || (p.id || "").toLowerCase() === clean);
+      if (found && found.id) {
+        CONTACTS_MAP.set(clean, { id: found.id, username: found.username || clean, name: found.name });
+        return { id: found.id, username: found.username || clean, name: found.name };
+      }
+    }
+  } catch {}
 
   return null;
 }
@@ -1736,7 +1803,6 @@ function runClientWorker(job, session) {
 
             attempts++;
             const effectivePin = job.pin || session.account.pin || null;
-            const effectiveCode = job.twoStepCode || session.account.twoStepCode || null;
 
             const payload = job.rawPayload
               ? {
@@ -1748,8 +1814,7 @@ function runClientWorker(job, session) {
                   ...(job.partyKind === "venue" ? { at: job.hostOrVenue } : { host: job.hostId }),
                   to: job.target,
                   stack: stackId,
-                  ...(effectivePin ? { pin: String(effectivePin).trim() } : {}),
-                  ...(effectiveCode ? { twoStepCode: String(effectiveCode).trim(), code: String(effectiveCode).trim() } : {})
+                  ...(effectivePin ? { pin: String(effectivePin).trim() } : {})
                 };
 
             let r;
@@ -2305,110 +2370,115 @@ function resolveSprayStack(raw) {
 
 // Client Auto-Sprayer (Party Money Gun)
 app.post("/api/client/spray", async (req, res) => {
-  const token = req.headers["x-client-token"] || req.query.token;
-  if (!token || !clientSessions.has(token)) return res.status(401).json({ error: "Unauthenticated" });
+  try {
+    const token = req.headers["x-client-token"] || req.query.token;
+    if (!token || !clientSessions.has(token)) return res.status(401).json({ error: "Unauthenticated" });
 
-  const session = clientSessions.get(token);
-  const { partyKind, hostOrVenue, target, stackAmount, stackId, count, delayMs, pin, twoStepCode, rawPayload } = req.body;
+    const session = clientSessions.get(token);
+    const { partyKind, hostOrVenue, target, stackAmount, stackId, count, delayMs, pin, twoStepCode, rawPayload } = req.body || {};
 
-  const cleanPin = pin ? String(pin).trim() : (session.account.pin || null);
-  const cleanTwoStep = twoStepCode ? String(twoStepCode).trim() : (session.account.twoStepCode || null);
-  if (cleanPin) session.account.pin = cleanPin;
-  if (cleanTwoStep) session.account.twoStepCode = cleanTwoStep;
+    const cleanPin = pin ? String(pin).trim() : (session.account.pin || null);
+    const cleanTwoStep = twoStepCode ? String(twoStepCode).trim() : (session.account.twoStepCode || null);
+    if (cleanPin) session.account.pin = cleanPin;
+    if (cleanTwoStep) session.account.twoStepCode = cleanTwoStep;
 
-  let parsedRaw = null;
-  if (rawPayload && typeof rawPayload === "object") {
-    parsedRaw = rawPayload;
-  } else if (typeof rawPayload === "string" && rawPayload.trim().startsWith("{")) {
-    try {
-      parsedRaw = JSON.parse(rawPayload.trim());
-    } catch (e) {
-      return res.status(400).json({ error: "Invalid Raw JSON payload format" });
-    }
-  }
-
-  const kind = partyKind === "venue" ? "venue" : "house";
-  let resolvedHostId = "";
-  let resolvedHostLabel = "";
-  let resolvedTargetId = "";
-  let resolvedTargetLabel = "";
-
-  if (parsedRaw) {
-    resolvedTargetId = parsedRaw.to || "party-target";
-    resolvedTargetLabel = parsedRaw.to ? `ID: ${parsedRaw.to}` : "Party Target";
-    resolvedHostId = parsedRaw.host || parsedRaw.at || "party";
-    resolvedHostLabel = parsedRaw.host ? `Host ${parsedRaw.host}` : `Venue ${parsedRaw.at || ""}`;
-  } else {
-    if (!hostOrVenue || !String(hostOrVenue).trim()) {
-      return res.status(400).json({ error: kind === "venue" ? "Club / Venue ID is required" : "Party Host @username or ID is required" });
-    }
-
-    if (kind === "house") {
-      const hostRes = await resolveTargetIdAsync(String(hostOrVenue).trim(), session.account.cookie);
-      if (hostRes.error || !hostRes.id) {
-        return res.status(400).json({ error: `Could not resolve Party Host "${hostOrVenue}": ${hostRes.error || "Not found"}` });
+    let parsedRaw = null;
+    if (rawPayload && typeof rawPayload === "object") {
+      parsedRaw = rawPayload;
+    } else if (typeof rawPayload === "string" && rawPayload.trim().startsWith("{")) {
+      try {
+        parsedRaw = JSON.parse(rawPayload.trim());
+      } catch (e) {
+        return res.status(400).json({ error: "Invalid Raw JSON payload format" });
       }
-      resolvedHostId = hostRes.id;
-      resolvedHostLabel = `@${hostRes.username || String(hostOrVenue).replace(/^@/, "")}`;
-    } else {
-      resolvedHostId = String(hostOrVenue).trim();
-      resolvedHostLabel = resolvedHostId;
     }
 
-    const targetRaw = target && String(target).trim() ? String(target).trim() : "";
-    if (!targetRaw && kind === "house") {
-      resolvedTargetId = resolvedHostId;
-      resolvedTargetLabel = `${resolvedHostLabel} (Host)`;
-    } else if (!targetRaw && kind === "venue") {
-      return res.status(400).json({ error: "Please enter the @username or ID of the person to spray at the venue" });
+    const kind = partyKind === "venue" ? "venue" : "house";
+    let resolvedHostId = "";
+    let resolvedHostLabel = "";
+    let resolvedTargetId = "";
+    let resolvedTargetLabel = "";
+
+    if (parsedRaw) {
+      resolvedTargetId = parsedRaw.to || "party-target";
+      resolvedTargetLabel = parsedRaw.to ? `ID: ${parsedRaw.to}` : "Party Target";
+      resolvedHostId = parsedRaw.host || parsedRaw.at || "party";
+      resolvedHostLabel = parsedRaw.host ? `Host ${parsedRaw.host}` : `Venue ${parsedRaw.at || ""}`;
     } else {
-      const targRes = await resolveTargetIdAsync(targetRaw, session.account.cookie);
-      if (targRes.error || !targRes.id) {
-        return res.status(400).json({ error: `Could not resolve spray target "${targetRaw}": ${targRes.error || "Not found"}` });
+      if (!hostOrVenue || !String(hostOrVenue).trim()) {
+        return res.status(400).json({ error: kind === "venue" ? "Club / Venue ID is required" : "Party Host @username or ID is required" });
       }
-      resolvedTargetId = targRes.id;
-      resolvedTargetLabel = `@${targRes.username || targetRaw.replace(/^@/, "")}`;
+
+      if (kind === "house") {
+        const hostRes = await resolveTargetIdAsync(String(hostOrVenue).trim(), session.account.cookie);
+        if (!hostRes || !hostRes.id) {
+          return res.status(400).json({ error: `Could not resolve Party Host "${hostOrVenue}". Try pasting their 20-character ID or check the spelling.` });
+        }
+        resolvedHostId = hostRes.id;
+        resolvedHostLabel = `@${hostRes.username || String(hostOrVenue).replace(/^@/, "")}`;
+      } else {
+        resolvedHostId = String(hostOrVenue).trim();
+        resolvedHostLabel = resolvedHostId;
+      }
+
+      const targetRaw = target && String(target).trim() ? String(target).trim() : "";
+      if (!targetRaw && kind === "house") {
+        resolvedTargetId = resolvedHostId;
+        resolvedTargetLabel = `${resolvedHostLabel} (Host)`;
+      } else if (!targetRaw && kind === "venue") {
+        return res.status(400).json({ error: "Please enter the @username or ID of the person to spray at the venue" });
+      } else {
+        const targRes = await resolveTargetIdAsync(targetRaw, session.account.cookie);
+        if (!targRes || !targRes.id) {
+          return res.status(400).json({ error: `Could not resolve spray target "${targetRaw}". Try pasting their 20-character ID or check the spelling.` });
+        }
+        resolvedTargetId = targRes.id;
+        resolvedTargetLabel = `@${targRes.username || targetRaw.replace(/^@/, "")}`;
+      }
     }
+
+    const totalSprays = Math.max(1, Math.min(Number(count) || 100, 10000));
+    const stackObj = resolveSprayStack(parsedRaw?.stack || stackId || stackAmount || 1000000000);
+    const numericStack = stackObj.amount;
+    const totalNaira = totalSprays * numericStack;
+    const speedMs = Math.max(100, Number(delayMs) || 350);
+
+    const jobId = `cjob_spray_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    const job = {
+      id: jobId,
+      type: "spray",
+      partyKind: kind,
+      hostOrVenue: resolvedHostId,
+      hostId: resolvedHostId,
+      hostLabel: resolvedHostLabel,
+      target: resolvedTargetId,
+      targetLabel: `💸 ${resolvedTargetLabel}`,
+      stackId: stackObj.id,
+      stackValue: stackObj.id,
+      rawPayload: parsedRaw,
+      chunkSize: numericStack,
+      totalTxs: totalSprays,
+      txCount: 0,
+      total: totalNaira,
+      remaining: totalNaira,
+      delayMs: speedMs,
+      pin: cleanPin,
+      twoStepCode: cleanTwoStep,
+      status: "RUNNING",
+      createdAt: new Date().toISOString(),
+      logs: [
+        `[${new Date().toLocaleTimeString()}] 💸 Money Gun armed: ${totalSprays}x sprays of ${stackObj.label} [stack="${stackObj.id}"] (Total: ₦${totalNaira.toLocaleString()}) on ${resolvedTargetLabel}`,
+        ...(cleanPin ? [`[${new Date().toLocaleTimeString()}] 🔒 Transaction PIN attached for automatic non-stop spraying.`] : [])
+      ]
+    };
+
+    session.jobs.unshift(job);
+    runClientWorker(job, session);
+    return res.json({ success: true, message: "Auto-Sprayer started!", job });
+  } catch (err) {
+    console.error("Spray endpoint error:", err);
+    return res.status(500).json({ error: err.message || "Failed to start Auto-Sprayer" });
   }
-
-  const totalSprays = Math.max(1, Math.min(Number(count) || 100, 10000));
-  const stackObj = resolveSprayStack(parsedRaw?.stack || stackId || stackAmount || 1000000000);
-  const numericStack = stackObj.amount;
-  const totalNaira = totalSprays * numericStack;
-  const speedMs = Math.max(100, Number(delayMs) || 350);
-
-  const jobId = `cjob_spray_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-  const job = {
-    id: jobId,
-    type: "spray",
-    partyKind: kind,
-    hostOrVenue: resolvedHostId,
-    hostId: resolvedHostId,
-    hostLabel: resolvedHostLabel,
-    target: resolvedTargetId,
-    targetLabel: `💸 ${resolvedTargetLabel}`,
-    stackId: stackObj.id,
-    stackValue: stackObj.id,
-    rawPayload: parsedRaw,
-    chunkSize: numericStack,
-    totalTxs: totalSprays,
-    txCount: 0,
-    total: totalNaira,
-    remaining: totalNaira,
-    delayMs: speedMs,
-    pin: cleanPin,
-    twoStepCode: cleanTwoStep,
-    status: "RUNNING",
-    createdAt: new Date().toISOString(),
-    logs: [
-      `[${new Date().toLocaleTimeString()}] 💸 Money Gun armed: ${totalSprays}x sprays of ${stackObj.label} [stack="${stackObj.id}"] (Total: ₦${totalNaira.toLocaleString()}) on ${resolvedTargetLabel}`,
-      ...(cleanPin ? [`[${new Date().toLocaleTimeString()}] 🔒 Transaction PIN attached for automatic non-stop spraying.`] : [])
-    ]
-  };
-
-  session.jobs.unshift(job);
-  runClientWorker(job, session);
-  res.json({ success: true, message: "Auto-Sprayer started!", job });
 });
 
 // Auto-detect active party / venue from live /api/save and /api/parties
