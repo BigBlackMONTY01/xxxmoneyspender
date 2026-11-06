@@ -112,10 +112,11 @@
         </div>
       </div>
 
-      <!-- Mode Selector (Single vs Bulk) -->
+      <!-- Mode Selector (Single vs Bulk vs Auto-Sprayer) -->
       <div class="mode-tabs">
         <button class="mode-tab-btn active" data-mode="single">Single Transfer</button>
         <button class="mode-tab-btn" data-mode="bulk">Bulk Distribution</button>
+        <button class="mode-tab-btn" data-mode="spray">💸 Auto-Sprayer</button>
       </div>
 
       <!-- MAIN SENDER PANELS -->
@@ -160,10 +161,19 @@
             </div>
           </div>
 
+          <div class="form-group" id="group-pin-single">
+            <label style="display:flex; justify-content:space-between; align-items:center;">
+              <span>Transaction PIN <span style="color:var(--apple-amber); font-weight:700;">(Required)</span></span>
+              <span style="font-size:10px; color:var(--apple-blue); font-weight:500;">🔒 Saved on device</span>
+            </label>
+            <input type="password" id="single-pin-input" placeholder="Enter your 4 or 6-digit transaction PIN" maxlength="10" class="mono-input" autocomplete="off">
+            <div class="field-hint">Enter once and it automatically applies to every chunk in single & bulk transfers.</div>
+          </div>
+
           <div class="form-group" id="group-twostep-single">
-            <label>Two-Step Code (If 2FA enabled on your account)</label>
+            <label>Two-Step 2FA Code (Optional — only if 2FA is enabled on your account)</label>
             <input type="text" id="single-twostep-input" placeholder="6-digit 2FA code (e.g. 123456)" maxlength="8" class="mono-input" autocomplete="off">
-            <div class="field-hint">LagosLife asks for this once when sending large amounts with 2FA enabled.</div>
+            <div class="field-hint">If your account also has Authenticator/Email 2FA enabled, enter the 6-digit code here.</div>
           </div>
 
           <!-- Schedule Transfer Option -->
@@ -212,10 +222,19 @@
             </div>
           </div>
 
+          <div class="form-group" id="group-pin-bulk">
+            <label style="display:flex; justify-content:space-between; align-items:center;">
+              <span>Transaction PIN <span style="color:var(--apple-amber); font-weight:700;">(Required)</span></span>
+              <span style="font-size:10px; color:var(--apple-blue); font-weight:500;">🔒 Saved on device</span>
+            </label>
+            <input type="password" id="bulk-pin-input" placeholder="Enter your 4 or 6-digit transaction PIN" maxlength="10" class="mono-input" autocomplete="off">
+            <div class="field-hint">Your PIN is automatically re-used on every chunk so your entire bulk queue finishes non-stop.</div>
+          </div>
+
           <div class="form-group" id="group-twostep-bulk">
-            <label>Two-Step Code (If 2FA enabled on your account)</label>
+            <label>Two-Step 2FA Code (Optional — only if 2FA is enabled on your account)</label>
             <input type="text" id="bulk-twostep-input" placeholder="6-digit 2FA code (e.g. 123456)" maxlength="8" class="mono-input" autocomplete="off">
-            <div class="field-hint">LagosLife asks for this once when sending large amounts with 2FA enabled.</div>
+            <div class="field-hint">If your account also has Authenticator/Email 2FA enabled, enter the 6-digit code here.</div>
           </div>
 
           <!-- Schedule Bulk Option -->
@@ -243,6 +262,85 @@
           <button id="btn-send-bulk" class="btn btn-gold btn-full btn-large">
             <span id="client-bulk-btn-label">Distribute to All</span>
           </button>
+        </div>
+
+        <!-- MODE 3: PARTY AUTO-SPRAYER (MONEY GUN) -->
+        <div id="mode-spray" class="mode-content">
+          <div class="form-group">
+            <label>Party Location Type</label>
+            <select id="spray-party-kind" class="select-input">
+              <option value="house">🏠 House Party (Spray Host or Guest)</option>
+              <option value="venue">🍾 Club / Venue Party (Quilox, Eko Hotel, etc.)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label id="spray-host-label">Party Host Username or ID</label>
+            <div class="input-with-button">
+              <input type="text" id="spray-host-input" placeholder="@host_username or 20-char ID" autocomplete="off" autocapitalize="none" spellcheck="false">
+              <button id="btn-detect-party" class="btn btn-secondary" type="button" title="Auto-detect from your active game">Auto-Detect</button>
+            </div>
+            <div class="field-hint" id="spray-host-hint">Type the @username of the player hosting the party (you must be inside the party in-game).</div>
+          </div>
+
+          <div class="form-group">
+            <label>Who to Spray (Leave blank to spray the Party Host)</label>
+            <input type="text" id="spray-target-input" placeholder="Defaults to Party Host if left empty" autocomplete="off" autocapitalize="none" spellcheck="false">
+          </div>
+
+          <div class="form-group">
+            <label>Stack per Spray (LagosLife Official Stacks)</label>
+            <input type="number" id="spray-stack-input" value="1000000000" min="1000" max="1000000000" step="1000000">
+            <div class="preset-chips">
+              <button class="btn-chip spray-stack-chip" type="button" data-spray-stack="500000">₦500K</button>
+              <button class="btn-chip spray-stack-chip" type="button" data-spray-stack="5000000">₦5M</button>
+              <button class="btn-chip spray-stack-chip" type="button" data-spray-stack="50000000">₦50M</button>
+              <button class="btn-chip spray-stack-chip active-chip" type="button" data-spray-stack="1000000000">₦1B (Max)</button>
+            </div>
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-group">
+              <label>Number of Sprays (Times)</label>
+              <input type="number" id="spray-count-input" value="100" min="1" max="10000">
+            </div>
+            <div class="form-group">
+              <label>Spray Speed</label>
+              <select id="spray-speed-select" class="select-input">
+                <option value="250">250ms ⚡ (Turbo)</option>
+                <option value="350" selected>350ms 🚀 (Fast)</option>
+                <option value="600">600ms 🍾 (Smooth)</option>
+                <option value="1000">1000ms 🛡️ (Relaxed)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="preset-chips" style="margin-top: -8px; margin-bottom: 16px;">
+            <button class="btn-chip spray-count-chip" type="button" data-spray-count="20">20x (₦20B)</button>
+            <button class="btn-chip spray-count-chip" type="button" data-spray-count="50">50x (₦50B)</button>
+            <button class="btn-chip spray-count-chip active-chip" type="button" data-spray-count="100">100x (₦100B)</button>
+            <button class="btn-chip spray-count-chip" type="button" data-spray-count="200">200x (₦200B)</button>
+            <button class="btn-chip spray-count-chip" type="button" data-spray-count="500">500x (₦500B)</button>
+          </div>
+
+          <div class="form-group">
+            <label>Transaction PIN (Saved Once — Sprays Non-Stop)</label>
+            <input type="password" id="spray-pin-input" placeholder="Enter your 4 or 6-digit PIN" maxlength="8" class="mono-input" autocomplete="off" inputmode="numeric">
+          </div>
+
+          <button id="btn-start-spray" class="btn btn-gold btn-full btn-large" type="button">
+            <span id="spray-btn-label">💸 Spray 100x (₦100B Total)</span>
+          </button>
+
+          <div style="margin-top: 18px; padding: 14px; border-radius: 12px; background: rgba(212, 175, 55, 0.07); border: 1px solid rgba(212, 175, 55, 0.22);">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;">
+              <div>
+                <strong style="color: #f3d266; font-size: 0.9rem;">🔫 In-Game Floating Money Gun Widget</strong>
+                <p style="margin: 4px 0 0 0; font-size: 0.78rem; color: #a1a1aa;">Want a floating 100x Money Gun button right inside your LagosLife screen? Copy this script and paste it in the browser console while at a party.</p>
+              </div>
+              <button id="btn-copy-sprayer-widget" class="btn btn-secondary btn-mini" type="button">📋 Copy In-Game Script</button>
+            </div>
+          </div>
         </div>
 
       </main>
@@ -298,6 +396,6 @@
     </div>
   </div>
 
-  <script src="client.js?v=3.1"></script>
+  <script src="client.js?v=3.3"></script>
 </body>
 </html>
