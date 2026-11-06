@@ -1,7 +1,7 @@
 import fs from "node:fs";
 
-// Session Cookie for @milespete
-const COOKIE = "ll_dev=2l08616a3s395t0d; ll_vid=102f439367af4102b904; ll_session=a0a199276c31c3ab9e62c542f465532eecbeb7f480adf58fbd8eb8f33c799094; ll_pass=eyJpIjoiYmM3NDU4Mzc5MzVkNDVlZmJmNDciLCJ1IjoibWlsZXNwZXRlIiwibiI6Ik1pbGVzIFBldGVyIiwidCI6IjJ4cFplb2VObGZYTEh0VUEiLCJlIjoxNzkyMTE2NTM0MzY2fQ.UJWqc2tFrMVPbXnnolCqfipkguVBoB6SzJPvwJznxsQ";
+// Session Cookie for @blaqsebastian
+const COOKIE = "ll_dev=6a3s6k3232505u2d; ll_session=339d61047977ccde5cdc1ff6217ed6992e93fd8e2d842193fa95b54129d8f3fd; ll_pass=eyJpIjoiYmQ3NzI5ZmExZWVhNDJhMGJlNDAiLCJ1IjoiZGF0aWVtbzAwMSIsIm4iOiJEYXRpZW1vIiwidCI6IlpWN2Vzb21PODdpWjFKTzEiLCJlIjoxNzkzMTA4NTM4NjE0fQ.H6lpEoOLgwIRRqda7G0FFZ7qPDYkTkwCSPqOiPMqr1E";
 
 const BASE_URL = "https://lagoslife.app/api/messages";
 const STATE_FILE = "./bulk_message_state.json";
