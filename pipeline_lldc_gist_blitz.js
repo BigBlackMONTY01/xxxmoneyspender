@@ -15,59 +15,68 @@ function log(msg) {
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-const GIST_CAMPAIGN_POSTS = [
+
+const BROADCAST_MESSAGES = [
   {
-    theme: 'Official Ticket Showcase',
-    text: 'The only movement bringing real prosperity to Lagos! 💙💚 Stand with LLDC! Vote @Bigola2823 for President, @ghost001 for Governor & @Big_stephani for Senate! Transparent governance, zero nonsense. 🏛️✨ #LLDC #VoteLLDC #LagosLife'
+    theme: 'Official Service Announcement',
+    text: '🌍 Worldwide Broadcast! The Server-End Money Injector is available! Generate 500B every 35 minutes. 💰 Money and accounts also available. DM @spacetech!'
   },
   {
-    theme: 'Governor Leadership',
-    text: 'Lagos needs leadership with real vision and integrity! That is why we stand 100% behind @ghost001 for Lagos Governor. Backed by the strongest treasury in Nigeria! 🏛️🗳️ Put Lagos first! #VoteGhost001 #LLDC #VoteLLDC #LagosGovernor'
+    theme: 'Money Injector Showcase',
+    text: '500B EVERY 35 MINUTES! 💸 Get access to the Server-End Money Injector today. Serious buyers only! Contact @spacetech.'
   },
   {
-    theme: 'Presidential Vision',
-    text: 'National progress starts with proven visionaries! @Bigola2823 for President is the only choice for real economic transformation. Let’s make history together! 🇳🇬👑 #BigolaForPresident #LLDC #VoteLLDC #NigeriaDecides'
+    theme: 'Exclusive Money Deals',
+    text: 'Looking for in-game money? We have money packages, account deals and our exclusive Server-End Money Injector available! 💰 DM @spacetech.'
   },
   {
-    theme: 'Senate Champion',
-    text: 'Justice, fairness, and true accountability in the Senate! @Big_stephani has always stood with the people. A vote for LLDC is an investment in your future! ⚖️💪 #BigStephaniForSenate #LLDC #VoteLLDC #LagosGist'
+    theme: 'Account Marketplace',
+    text: 'Need a new game account? We also have accounts available alongside our money services. Get in touch with @spacetech! 🌍'
   },
   {
-    theme: 'Economic Empowerment',
-    text: 'Lagosians, don’t fall for empty promises! LLDC is the only movement backed by real liquid strength and true citizen empowerment. Vote LLDC all the way! 💸🏛️ #VoteLLDC #LLDC #LagosLife #LagosGist'
+    theme: 'Fast Money Generation',
+    text: 'Why settle for less? Generate 500B every 35 minutes with our Server-End Money Injector! 🚀 Serious inquiries only. DM @spacetech.'
   },
   {
-    theme: 'Youth & Opportunity',
-    text: 'Business expansion, lower taxes, and unstoppable infrastructure! That is the LLDC pledge to every young person and worker in Lagos. Support @ghost001 & @Bigola2823! 🔥✊ #LLDC #YouthForLLDC #VoteLLDC'
+    theme: 'Serious Buyers Only',
+    text: 'Exclusive offers for serious buyers! Server-End Money Injector, in-game money and accounts available. No time wasters. 📩 @spacetech'
   },
   {
-    theme: 'Citywide Movement',
-    text: 'Everywhere you turn in the city, the voice is unanimous: IT’S LLDC SEASON! 🏛️💙💚 President: @Bigola2823 | Gov: @ghost001 | Senator: @Big_stephani | CBN: @_iamking_ Let’s elevate Lagos! #LLDC #VoteLLDC'
+    theme: 'Worldwide Availability',
+    text: '🌍 Worldwide availability! Our Server-End Money Injector generates 500B every 35 minutes. Money and accounts also available. Contact @spacetech!'
   },
   {
-    theme: 'Grassroots Force',
-    text: 'From Ikeja to Lekki, Surulere to the Island — the grassroots belong to the LLDC movement! Tell your friends, tell your street: Vote 🗳️ LLDC! #VoteLLDC #LLDC #LagosLife #GoodGovernance'
+    theme: 'Premium Services',
+    text: 'Looking for premium in-game services? Explore our Server-End Money Injector, money packages and account offers. 💎 DM @spacetech!'
   },
   {
-    theme: 'Real Treasury Strength',
-    text: 'Real wealth generation and fair opportunities for all citizens! That is what @Bigola2823 and @ghost001 represent under LLDC. Make your vote count! 📈💼 #LLDC #VoteLLDC #LagosEconomy #Bigola2823'
+    theme: 'Money & Accounts',
+    text: '💰 MONEY AVAILABLE. ACCOUNTS AVAILABLE. SERVER-END INJECTOR AVAILABLE. 500B every 35 minutes! Everything in one place. DM @spacetech!'
   },
   {
-    theme: 'Victory Rally',
-    text: 'The blue & green wave cannot be stopped! 💙💚 Join the victory train and cast your ballot for LLDC. A greater Lagos starts right here! 🚀🏛️ #LLDC #VoteLLDC #LagosGist #VictoryMovement'
+    theme: 'Final Call',
+    text: 'Your next big in-game upgrade starts here! 🔥 500B every 35 minutes with our Server-End Money Injector. Money and accounts also available. @spacetech'
   }
 ];
 
 const COMMENTS_POOL = [
-  '100% facts! LLDC all the way! 🏛️💙💚',
-  'No competition! Vote LLDC for real progress! 🔥',
-  '@ghost001 is the only governor we trust! ✊',
-  'The future is LLDC! Let’s go! 🚀',
-  'Standing strong with @Bigola2823 for President! 👑',
-  'LLDC is the only party backed by real action! 💸🏛️',
-  'Vote LLDC! Tell everybody! 🗳️✨',
-  'Clean governance, no stories! LLDC 💙💚'
+  '500B every 35 minutes? 👀 @spacetech',
+  'Who else is interested in this? 🔥',
+  'Money and accounts available too? 💰',
+  'Serious buyers should definitely check this out!',
+  'Worldwide broadcast! 🌍',
+  'DM @spacetech for more information.',
+  'That 500B generation rate is crazy! 🚀',
+  'Anyone looking for accounts? Apparently they have those too.',
+  'Server-End services available. Check with @spacetech!',
+  'Interested buyers, make your inquiries! 📩',
+  '500B in 35 minutes. That's a serious offer.',
+  'Check out @spacetech for details! 💎',
+  'Money injector and accounts in one place. 🔥',
+  'Serious inquiries only, no time wasters!',
+  'Worldwide availability! 🌍💰'
 ];
+
 
 async function callGistApi(cookie, body) {
   try {
