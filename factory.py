@@ -88,8 +88,6 @@ def create_one_account(idx):
             "born": born,
             "captcha": token,
         }, timeout=20)
-        
-        print(reg.text)
 
         
        if reg.status_code != 200:
