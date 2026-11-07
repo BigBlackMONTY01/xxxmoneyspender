@@ -7,7 +7,6 @@ from curl_cffi import requests as cffi_requests
 import cloudscraper
 
 # ─── CONFIG ─────────────────────────────────────────────────
-BASE_URL = "https://lagoslife.app/api/captcha?for=signup"
 TREASURY_ID = "8b0ce8157f5a447dbe58"   # your main receiving account
 PIN_TO_SET = "2005"
 ACCOUNTS_TO_GENERATE = 1000
@@ -80,7 +79,7 @@ def create_one_account(idx):
         token = solve_turnstile(sitekey, "https://lagoslife.app/signup")
         
         # Register using cloudscraper session (s.post)
-        reg = s.post("https://lagoslife.app/api/signup", json={
+        reg = s.post("https://lagoslife.app/api/auth/register", json={
             "username": username,
             "password": password,
             "name": name,
