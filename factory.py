@@ -89,6 +89,8 @@ def create_one_account(idx):
             "captcha": token,
         }, timeout=20)
 
+        print(reg.text)
+
         if reg.status_code != 200:
             log(f"[{idx}] ✗ Register failed: {reg.status_code} {reg.text[:100]}")
             return None
