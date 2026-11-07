@@ -6,6 +6,7 @@ const LOG_FILE = './pipeline_lldc_gist_blitz.log';
 
 const ROUND_DELAY_MIN_MS = 2 * 60_000;
 const ROUND_DELAY_MAX_MS = 5 * 60_000;
+const BURNER_POST_INTERVAL_MS = 60_000; // 60s between burner posts
 const TOTAL_ROUNDS = 6;
 
 function log(msg) {
@@ -87,7 +88,11 @@ async function publishRound(burners, state, roundNum, usedPairs) {
         await sleep(4000);
       }
     }
-    await sleep(2500);
+
+    if (i < shuffledBurners.length - 1) {
+      log(`⏳ Waiting ${formatMs(BURNER_POST_INTERVAL_MS)} before next burner...`);
+      await sleep(BURNER_POST_INTERVAL_MS);
+    }
   }
 }
 
