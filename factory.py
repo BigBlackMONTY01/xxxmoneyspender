@@ -69,17 +69,17 @@ def create_one_account(idx):
     
     try:
         # Warm up session using cloudscraper
-        s.get("https://monteiroplayground.me", timeout=20)
+        s.get("https://lagoslife.app", timeout=20)
         
         # Get captcha sitekey
-        cap = s.get("https://monteiroplayground.me/api/captcha?for=signup", timeout=15).json()
+        cap = s.get("https://lagoslife.app/api/captcha?for=signup", timeout=15).json()
         sitekey = cap["siteKey"]
         
         # Get token from our function
-        token = solve_turnstile(sitekey, "https://monteiroplayground.me/signup")
+        token = solve_turnstile(sitekey, "https://lagoslife.app/signup")
         
         # Register using cloudscraper session (s.post)
-        reg = s.post("https://monteiroplayground.me/api/signup", json={
+        reg = s.post("https://lagoslife.app/api/signup", json={
             "username": username,
             "password": password,
             "name": name,
