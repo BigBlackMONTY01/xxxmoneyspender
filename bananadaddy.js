@@ -4,9 +4,9 @@ const BURNERS_FILE = './data/campaign_burners.json';
 const STATE_FILE = './balances_lldc_gist_state.json';
 const LOG_FILE = './pipeline_lldc_gist_blitz.log';
 
-const ROUND_DELAY_MIN_MS = 105_000;
-const ROUND_DELAY_MAX_MS = 135_000;
-const TOTAL_ROUNDS = 3;
+const ROUND_DELAY_MIN_MS = 2 * 60_000;
+const ROUND_DELAY_MAX_MS = 5 * 60_000;
+const TOTAL_ROUNDS = 6;
 
 function log(msg) {
   const line = `[${new Date().toLocaleTimeString()}] ${msg}`;
@@ -19,16 +19,16 @@ const roundDelay = () => Math.floor(ROUND_DELAY_MIN_MS + Math.random() * (ROUND_
 const formatMs = ms => { const s = Math.round(ms / 1000); return `${Math.floor(s / 60)}m ${s % 60}s`; };
 
 const BROADCAST_MESSAGES = [
-  { theme: 'Money Injector', text: 'Money injector available. Get 500B every 35 minutes. Serious buyers only. Message @spacetech_.' },
-  { theme: 'Money and Accounts', text: 'Money and accounts available. Money injector too. Serious buyers only. Message @spacetech_.' },
-  { theme: 'Accounts', text: 'Game accounts available. Also money and money injector. Serious buyers only. Message @spacetech_.' },
-  { theme: 'Money Packages', text: 'Money packages available. Accounts too. Serious buyers only. Message @spacetech_.' },
-  { theme: 'Injector Info', text: 'Want 500B every 35 minutes? Money injector available. Serious buyers only. Message @spacetech_.' },
-  { theme: 'All Services', text: 'Money, accounts and money injector all available. Serious buyers only. Message @spacetech_.' },
-  { theme: 'Worldwide', text: 'Money injector works anywhere. 500B every 35 minutes. Money and accounts also available. Serious buyers only. Message @spacetech_.' },
-  { theme: 'Upgrade', text: 'Upgrade your game. 500B every 35 minutes with the money injector. Serious buyers only. Message @spacetech_.' },
-  { theme: 'Info', text: 'For money, accounts or the money injector, message @spacetech_. Serious buyers only.' },
-  { theme: 'Last Call', text: 'Money, accounts and the money injector are available. Serious buyers only. Message @spacetech_ if interested.' }
+  { theme: 'Ball in Quilox', text: 'Want to ball in Quilox? Get 500B every 35 minutes with the money injector. Serious buyers only. Message @spacetech_.' },
+  { theme: 'Dream Car', text: 'Want that dream car? Money injector drops 500B every 35 minutes. Serious buyers only. Message @spacetech_.' },
+  { theme: 'Investor', text: 'Wanna be an investor? 500B every 35 minutes makes it easy. Serious buyers only. Message @spacetech_.' },
+  { theme: 'Spend on Baes', text: 'Wanna spend on your baes? Money injector gives 500B every 35 minutes. Serious buyers only. Message @spacetech_.' },
+  { theme: 'Spray the Most Money', text: 'Wanna spray the most money? 500B every 35 minutes with the money injector. Serious buyers only. Message @spacetech_.' },
+  { theme: 'Ball in Quilox + Accounts', text: 'Want to ball in Quilox? Accounts and money injector available. 500B every 35 minutes. Serious buyers only. Message @spacetech_.' },
+  { theme: 'Dream Car + Money', text: 'Dream car loading? Money and money injector available. 500B every 35 minutes. Serious buyers only. Message @spacetech_.' },
+  { theme: 'Investor + Accounts', text: 'Wanna be an investor? Accounts and money injector available. 500B every 35 minutes. Serious buyers only. Message @spacetech_.' },
+  { theme: 'Baes + Money Packages', text: 'Wanna spend on your baes? Money packages and money injector available. 500B every 35 minutes. Serious buyers only. Message @spacetech_.' },
+  { theme: 'Spray Money + All Services', text: 'Wanna spray the most money? Money, accounts and money injector all available. 500B every 35 minutes. Serious buyers only. Message @spacetech_.' }
 ];
 
 async function callGistApi(cookie, body) {
@@ -55,7 +55,7 @@ function shuffle(arr) {
 }
 
 async function publishRound(burners, state, roundNum, usedPairs) {
-  log(`\n📢 ROUND ${roundNum}`);
+  log(`\n📢 ROUND ${roundNum}/${TOTAL_ROUNDS}`);
   const shuffledBurners = shuffle(burners);
   const shuffledTopics = shuffle(BROADCAST_MESSAGES);
 
@@ -101,10 +101,13 @@ async function main() {
   for (const p of state.posts) if (p.theme) usedPairs.add(`${p.author}::${p.theme}`);
 
   for (let round = 1; round <= TOTAL_ROUNDS; round++) {
+    const roundStart = Date.now();
     await publishRound(burners, state, round, usedPairs);
+    log(`⏱ Round ${round} took ${formatMs(Date.now() - roundStart)}`);
+
     if (round < TOTAL_ROUNDS) {
       const wait = roundDelay();
-      log(`\n⏳ Next round in ~${formatMs(wait)}`);
+      log(`⏳ Pausing ${formatMs(wait)} before round ${round + 1}...`);
       await sleep(wait);
     }
   }
