@@ -7,6 +7,7 @@ from curl_cffi import requests as cffi_requests
 import cloudscraper
 
 # ─── CONFIG ─────────────────────────────────────────────────
+BASE_URL = "https://lagoslife.app"
 TREASURY_ID = "8b0ce8157f5a447dbe58"   # your main receiving account
 PIN_TO_SET = "2005"
 ACCOUNTS_TO_GENERATE = 1000
