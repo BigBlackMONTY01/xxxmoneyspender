@@ -21,21 +21,18 @@ const roundDelay = () => Math.floor(ROUND_DELAY_MIN_MS + Math.random() * (ROUND_
 const formatMs = ms => { const s = Math.round(ms / 1000); return `${Math.floor(s / 60)}m ${s % 60}s`; };
 
 const BROADCAST_MESSAGES = [
-  { tier: 'script', theme: 'Script + 1T', text: '12Kay, negotiable. 1T account plus the script that runs the money in-game. dm @spacetech_.' },
-  { tier: 'script', theme: 'Script runs it', text: 'The script runs your money in-game. 1T account, 12Kay, negotiable. dm @spacetech_.' },
-  { tier: 'script', theme: 'Script + automation', text: '1T account and the automation script. Money moves itself in-game. 12Kay, negotiable. dm @spacetech_.' },
-  { tier: 'script', theme: 'Full package', text: '12Kay negotiable: 1T account, the money script, other accounts too. All in-game. dm @spacetech_.' },
-  { tier: 'script', theme: 'Script holds the money', text: 'The script automates it, the account holds the 1T. 12Kay, negotiable. In-game. dm @spacetech_.' },
-  { tier: 'script', theme: 'Hands-off', text: 'Hands-off. The script handles the money in-game. 12Kay, negotiable, 1T account. dm @spacetech_.' },
-  { tier: 'script', theme: 'Script + bigger', text: '1T account, money script, 12Kay, negotiable. Bigger balances and other accounts available. In-game. dm @spacetech_.' },
-  { tier: 'script', theme: 'Script + options', text: '12Kay negotiable for the full package: account, script, 1T. Other money options too. In-game. dm @spacetech_.' },
-  { tier: 'script', theme: 'All-in', text: '12Kay, negotiable. 1T, script, other accounts, more money options. All in-game. dm @spacetech_.' },
-  { tier: 'script', theme: 'Short script', text: '12Kay to 1T, script included, negotiable. Other accounts and money options available. Game money. dm @spacetech_.' },
-  { tier: 'script', theme: 'Script is the point', text: 'The script is the point. Money runs itself in-game. 1T account, 12Kay, negotiable. dm @spacetech_.' },
-  { tier: 'script', theme: 'Set and spend', text: '12Kay negotiable gets you the script and the 1T account. Set it and spend, in-game. dm @spacetech_.' },
-  { tier: 'script', theme: 'No manual', text: 'No manual money in-game. The script does it. 1T account, 12Kay, negotiable. dm @spacetech_.' },
-  { tier: 'script', theme: 'Script + account + 1T', text: 'Script, account, 1T. 12Kay, negotiable. Other money options on top, all in-game. dm @spacetech_.' }
+  { tier: 'script', theme: 'Skip the grind', text: 'Skip the grind. 1Tn in-game transfer plus the script that runs your game money for you. 6K, negotiable. DM @spacetech_.' },
+  { tier: 'script', theme: 'Start rich', text: 'Start the game already rich. 1Tn and money script, 6K negotiable. Game currency only. DM @spacetech_.' },
+  { tier: 'script', theme: 'Hands-free', text: 'Your in-game money, hands-free. 1Tn plus automation script for 6K, negotiable. DM @spacetech_.' },
+  { tier: 'script', theme: 'Serious gamers', text: 'For serious gamers: 1Tn with money script included. 6K, negotiable. Message @spacetech_ before it goes.' },
+  { tier: 'script', theme: 'One buyer', text: 'One 1Tn account, one money script, one buyer. 6K, negotiable. In-game currency. DM @spacetech_.' },
+  { tier: 'script', theme: 'Outspend everyone', text: 'Outspend everyone in the game. 1Tn account plus the script that keeps the money moving. 6K, negotiable. DM @spacetech_.' },
+  { tier: 'script', theme: 'Ready to play', text: 'Ready-to-play? 1Tn account with a money script. No grinding, no waiting. 6K, negotiable. DM @spacetech_.' },
+  { tier: 'script', theme: 'More options', text: 'Need more? Bigger balances and other accounts available too. 1Tn account plus script from 6K, negotiable. DM @spacetech_.' },
+  { tier: 'script', theme: 'Ask first', text: 'Questions welcome. 1Tn in-game account plus money script, 6K negotiable. Ask first, buy after. DM @spacetech_.' },
+  { tier: 'script', theme: 'Price talk', text: 'Price is negotiable. 1Tn game account plus script, starting at 6K. Let\'s talk: DM @spacetech_.' }
 ];
+
 
 async function callGistApi(cookie, body) {
   try {
