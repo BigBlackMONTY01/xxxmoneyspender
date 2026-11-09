@@ -21,22 +21,22 @@ const roundDelay = () => Math.floor(ROUND_DELAY_MIN_MS + Math.random() * (ROUND_
 const formatMs = ms => { const s = Math.round(ms / 1000); return `${Math.floor(s / 60)}m ${s % 60}s`; };
 
 const BROADCAST_MESSAGES = [
-  { tier: 'script', theme: 'Lagos Life 1T', text: 'Lagos Life players: 1T in-game account plus money script. ₦6K, negotiable. DM @spacetech_.' },
-  { tier: 'script', theme: 'Skip the grind', text: 'Skip the Lagos Life grind. 1T in-game cash account plus the script that handles your money. ₦6K, negotiable. DM @spacetech_.' },
-  { tier: 'script', theme: 'Start rich', text: 'Start Lagos Life already rich. 1T account and money script, ₦6K negotiable. Game currency only. DM @spacetech_.' },
-  { tier: 'script', theme: 'Hands-free', text: 'Lagos Life money, hands-free. 1T account plus automation script for ₦6K, negotiable. DM @spacetech_.' },
-  { tier: 'script', theme: 'Serious players', text: 'For serious Lagos Life players: 1T account with script included. ₦6K, negotiable. Message @spacetech_ before it goes.' },
-  { tier: 'script', theme: 'Outspend', text: 'Outspend everyone in Lagos Life. 1T account plus money script. ₦6K, negotiable. DM @spacetech_.' },
-  { tier: 'script', theme: 'More options', text: 'Need more? Bigger Lagos Life balances and other accounts available. 1T account plus script from ₦6K, negotiable. DM @spacetech_.' },
-  { tier: 'script', theme: 'Ask first', text: 'Questions welcome. Lagos Life 1T account plus money script, ₦6K negotiable. Ask first, buy after. DM @spacetech_.' },
-  { tier: 'followers', theme: 'Lagos gist', text: 'Running a Lagos gist page? 1k followers for ₦5K. Fast delivery. DM @spacetech_.' },
-  { tier: 'followers', theme: 'Look active', text: 'Make your page look active. 1k followers, ₦5K. Bulk discounts available. DM @spacetech_.' },
-  { tier: 'followers', theme: 'First 1k', text: 'Gist page, blog, or business page: get your first 1k followers for ₦5K. DM @spacetech_ to start.' },
-  { tier: 'followers', theme: 'Simple deal', text: '₦5K = 1k followers. Pay, send your page link, and watch the count move. DM @spacetech_.' },
-  { tier: 'followers', theme: 'Lagos package', text: 'The Lagos gist package: 1k followers for ₦5K. Need more? Ask about bulk. DM @spacetech_.' },
-  { tier: 'followers', theme: 'Grow faster', text: 'Stop waiting on the algorithm. 1k followers, ₦5K, delivered fast. DM @spacetech_.' },
-  { tier: 'followers', theme: 'Ask first', text: 'Questions welcome before you pay. 1k followers for ₦5K. DM @spacetech_.' },
-  { tier: 'followers', theme: 'Bulk', text: 'Bigger page, bigger plan. 1k followers is ₦5K, and bulk orders get a better rate. DM @spacetech_.' }
+  { tier: 'script', theme: 'Lagos Life 1T', text: 'Lagos Life players: 1Tn in-game account plus money script. ₦6Kay, negotiable. DM @spacetech_.' },
+  { tier: 'script', theme: 'Skip the grind', text: 'Skip the Lagos Life grind. 1Tn in-game cash account plus the script that handles your money. ₦6Kay, negotiable. DM @spacetech_.' },
+  { tier: 'script', theme: 'Start rich', text: 'Start Lagos Life already rich. 1Tn account and money script, ₦6Kay negotiable. Game currency only. DM @spacetech_.' },
+  { tier: 'script', theme: 'Hands-free', text: 'Lagos Life money, hands-free. 1Tn account plus automation script for ₦6Kay, negotiable. DM @spacetech_.' },
+  { tier: 'script', theme: 'Serious players', text: 'For serious Lagos Life players: 1Tee account with script included. ₦6Kay, negotiable. Message @spacetech_ before it goes.' },
+  { tier: 'script', theme: 'Outspend', text: 'Outspend everyone in Lagos Life. 1Tn account plus money script. ₦6Kay, negotiable. DM @spacetech_.' },
+  { tier: 'script', theme: 'More options', text: 'Need more? Bigger Lagos Life balances and other accounts available. 1Tn account plus script from ₦6Kay, negotiable. DM @spacetech_.' },
+  { tier: 'script', theme: 'Ask first', text: 'Questions welcome. Lagos Life 1Tn account plus money script, ₦6Kay negotiable. Ask first, buy after. DM @spacetech_.' },
+  { tier: 'followers', theme: 'Lagos gist', text: 'Running a Lagos gist page? 1.k followers for ₦5Kay. Fast delivery. DM @spacetech_.' },
+  { tier: 'followers', theme: 'Look active', text: 'Make your page look active. 1.k followers, ₦5Kay. Bulk discounts available. DM @spacetech_.' },
+  { tier: 'followers', theme: 'First 1k', text: 'Gist page, blog, or business page: get your first 1.k followers for ₦5Kay. DM @spacetech_ to start.' },
+  { tier: 'followers', theme: 'Simple deal', text: '₦5Kay = 1.k followers. Pay, send your page link, and watch the count move. DM @spacetech_.' },
+  { tier: 'followers', theme: 'Lagos package', text: 'The Lagos gist package: 1.k followers for ₦5Kay. Need more? Ask about bulk. DM @spacetech_.' },
+  { tier: 'followers', theme: 'Grow faster', text: 'Stop waiting on the algorithm. 1.k followers, ₦5Kay, delivered fast. DM @spacetech_.' },
+  { tier: 'followers', theme: 'Ask first', text: 'Questions welcome before you pay. 1.k followers for ₦5Kay. DM @spacetech_.' },
+  { tier: 'followers', theme: 'Bulk', text: 'Bigger page, bigger plan. 1.k followers is ₦5Kay, and bulk orders get a better rate. DM @spacetech_.' }
 ];
 
 
