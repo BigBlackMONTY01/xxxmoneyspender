@@ -6,8 +6,9 @@ const LOG_FILE = './pipeline_lldc_gist_blitz.log';
 
 const ROUND_DELAY_MIN_MS = 2 * 60_000;
 const ROUND_DELAY_MAX_MS = 5 * 60_000;
-const BURNER_POST_INTERVAL_MS = 60_000; // 60s between burner posts
+const BURNER_POST_INTERVAL_MS = 30_000;
 const TOTAL_ROUNDS = 6;
+const MAX_ATTEMPTS = 2; // retry twice per burner per round, then move on
 
 function log(msg) {
   const line = `[${new Date().toLocaleTimeString()}] ${msg}`;
@@ -20,16 +21,20 @@ const roundDelay = () => Math.floor(ROUND_DELAY_MIN_MS + Math.random() * (ROUND_
 const formatMs = ms => { const s = Math.round(ms / 1000); return `${Math.floor(s / 60)}m ${s % 60}s`; };
 
 const BROADCAST_MESSAGES = [
-  { theme: 'Ball in Quilox', text: 'Want to ball in Quilox? Get 500B every 35 minutes with the money injector. Serious buyers only. Message @spacetech_.' },
-  { theme: 'Dream Car', text: 'Want that dream car? Money injector drops 500B every 35 minutes. Serious buyers only. Message @spacetech_.' },
-  { theme: 'Investor', text: 'Wanna be an investor? 500B every 35 minutes makes it easy. Serious buyers only. Message @spacetech_.' },
-  { theme: 'Spend on Baes', text: 'Wanna spend on your baes? Money injector gives 500B every 35 minutes. Serious buyers only. Message @spacetech_.' },
-  { theme: 'Spray the Most Money', text: 'Wanna spray the most money? 500B every 35 minutes with the money injector. Serious buyers only. Message @spacetech_.' },
-  { theme: 'Ball in Quilox + Accounts', text: 'Want to ball in Quilox? Accounts and money injector available. 500B every 35 minutes. Serious buyers only. Message @spacetech_.' },
-  { theme: 'Dream Car + Money', text: 'Dream car loading? Money and money injector available. 500B every 35 minutes. Serious buyers only. Message @spacetech_.' },
-  { theme: 'Investor + Accounts', text: 'Wanna be an investor? Accounts and money injector available. 500B every 35 minutes. Serious buyers only. Message @spacetech_.' },
-  { theme: 'Baes + Money Packages', text: 'Wanna spend on your baes? Money packages and money injector available. 500B every 35 minutes. Serious buyers only. Message @spacetech_.' },
-  { theme: 'Spray Money + All Services', text: 'Wanna spray the most money? Money, accounts and money injector all available. 500B every 35 minutes. Serious buyers only. Message @spacetech_.' }
+  { tier: 'script', theme: 'Script + 1T', text: '12Kay, negotiable. 1T account plus the script that runs the money in-game. dm @spacetech_.' },
+  { tier: 'script', theme: 'Script runs it', text: 'The script runs your money in-game. 1T account, 12Kay, negotiable. dm @spacetech_.' },
+  { tier: 'script', theme: 'Script + automation', text: '1T account and the automation script. Money moves itself in-game. 12Kay, negotiable. dm @spacetech_.' },
+  { tier: 'script', theme: 'Full package', text: '12Kay negotiable: 1T account, the money script, other accounts too. All in-game. dm @spacetech_.' },
+  { tier: 'script', theme: 'Script holds the money', text: 'The script automates it, the account holds the 1T. 12Kay, negotiable. In-game. dm @spacetech_.' },
+  { tier: 'script', theme: 'Hands-off', text: 'Hands-off. The script handles the money in-game. 12Kay, negotiable, 1T account. dm @spacetech_.' },
+  { tier: 'script', theme: 'Script + bigger', text: '1T account, money script, 12Kay, negotiable. Bigger balances and other accounts available. In-game. dm @spacetech_.' },
+  { tier: 'script', theme: 'Script + options', text: '12Kay negotiable for the full package: account, script, 1T. Other money options too. In-game. dm @spacetech_.' },
+  { tier: 'script', theme: 'All-in', text: '12Kay, negotiable. 1T, script, other accounts, more money options. All in-game. dm @spacetech_.' },
+  { tier: 'script', theme: 'Short script', text: '12Kay to 1T, script included, negotiable. Other accounts and money options available. Game money. dm @spacetech_.' },
+  { tier: 'script', theme: 'Script is the point', text: 'The script is the point. Money runs itself in-game. 1T account, 12Kay, negotiable. dm @spacetech_.' },
+  { tier: 'script', theme: 'Set and spend', text: '12Kay negotiable gets you the script and the 1T account. Set it and spend, in-game. dm @spacetech_.' },
+  { tier: 'script', theme: 'No manual', text: 'No manual money in-game. The script does it. 1T account, 12Kay, negotiable. dm @spacetech_.' },
+  { tier: 'script', theme: 'Script + account + 1T', text: 'Script, account, 1T. 12Kay, negotiable. Other money options on top, all in-game. dm @spacetech_.' }
 ];
 
 async function callGistApi(cookie, body) {
@@ -55,19 +60,53 @@ function shuffle(arr) {
   return a;
 }
 
+// Only script tier for now. When other tiers exist, weight them here.
+function pickRoundTopics(n) {
+  const pool = shuffle(BROADCAST_MESSAGES);
+  const picks = [];
+  for (let i = 0; i < n; i++) picks.push(pool[i % pool.length]);
+  return picks;
+}
+
+// Treat 401/403 as dead accounts. Other failures are transient and retried.
+function isDeadAccount(res) {
+  if (res.status === 401 || res.status === 403) return true;
+  const err = String(res.data?.error || res.error || '').toLowerCase();
+  return err.includes('unauthorized') || err.includes('forbidden') || err.includes('login') || err.includes('session');
+}
+
+function markDead(state, burner, reason) {
+  state.deadBurners = state.deadBurners || {};
+  if (!state.deadBurners[burner.user]) {
+    state.deadBurners[burner.user] = { name: burner.name, reason, at: new Date().toISOString() };
+    fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2));
+    log(`💀 [@${burner.user}] marked dead: ${reason}`);
+  }
+}
+
 async function publishRound(burners, state, roundNum, usedPairs) {
   log(`\n📢 ROUND ${roundNum}/${TOTAL_ROUNDS}`);
-  const shuffledBurners = shuffle(burners);
-  const shuffledTopics = shuffle(BROADCAST_MESSAGES);
+  const dead = state.deadBurners || {};
+  const alive = burners.filter(b => !dead[b.user]);
+  if (!alive.length) {
+    log('🛑 No live burners left, stopping.');
+    return false;
+  }
+  if (alive.length < burners.length) {
+    log(`ℹ️ Skipping ${burners.length - alive.length} dead burner(s) this round.`);
+  }
+
+  const shuffledBurners = shuffle(alive);
+  const topics = pickRoundTopics(shuffledBurners.length);
 
   for (let i = 0; i < shuffledBurners.length; i++) {
     const burner = shuffledBurners[i];
-    let topic = shuffledTopics[i % shuffledTopics.length];
+    let topic = topics[i];
     let key = `${burner.user}::${topic.theme}`;
     let g = 0;
     while (usedPairs.has(key) && g < 10) {
       g++;
-      topic = shuffledTopics[(i + g) % shuffledTopics.length];
+      topic = BROADCAST_MESSAGES[(BROADCAST_MESSAGES.indexOf(topic) + g) % BROADCAST_MESSAGES.length];
       key = `${burner.user}::${topic.theme}`;
     }
     usedPairs.add(key);
@@ -75,18 +114,26 @@ async function publishRound(burners, state, roundNum, usedPairs) {
     log(`⚡ [@${burner.user}] ${topic.theme}: "${topic.text.slice(0, 40)}..."`);
 
     let sent = false, attempts = 0;
-    while (!sent && attempts < 5) {
+    while (!sent && attempts < MAX_ATTEMPTS) {
       attempts++;
       const res = await callGistApi(burner.cookie, { action: 'post', text: topic.text, chip: null });
       if (res.ok && res.data?.post?.id) {
         sent = true;
-        state.posts.push({ id: res.data.post.id, author: burner.user, authorName: burner.name, body: topic.text, theme: topic.theme, round: roundNum, postedAt: new Date().toISOString() });
+        state.posts.push({ id: res.data.post.id, author: burner.user, authorName: burner.name, body: topic.text, theme: topic.theme, tier: topic.tier, round: roundNum, postedAt: new Date().toISOString() });
         fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2));
         log(`✅ [@${burner.user}] Live: ${res.data.post.id}`);
       } else {
-        log(`⚠️ [@${burner.user}] ${res.status}: ${res.data?.error || res.error}`);
-        await sleep(4000);
+        log(`⚠️ [@${burner.user}] attempt ${attempts}/${MAX_ATTEMPTS} ${res.status}: ${res.data?.error || res.error}`);
+        if (isDeadAccount(res)) {
+          markDead(state, burner, `${res.status} ${res.data?.error || res.error || ''}`.trim());
+          break;
+        }
+        if (attempts < MAX_ATTEMPTS) await sleep(4000);
       }
+    }
+
+    if (!sent && !(state.deadBurners || {})[burner.user]) {
+      log(`❌ [@${burner.user}] gave up after ${attempts} attempts, moving on`);
     }
 
     if (i < shuffledBurners.length - 1) {
@@ -94,20 +141,27 @@ async function publishRound(burners, state, roundNum, usedPairs) {
       await sleep(BURNER_POST_INTERVAL_MS);
     }
   }
+  return true;
 }
 
 async function main() {
   log('LLDC GIST BLITZ');
   const burners = JSON.parse(fs.readFileSync(BURNERS_FILE, 'utf8'));
-  let state = { startedAt: new Date().toISOString(), posts: [], completed: false };
+  let state = { startedAt: new Date().toISOString(), posts: [], deadBurners: {}, completed: false };
   try { state = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8')); } catch {}
+  state.deadBurners = state.deadBurners || {};
+
+  if (state.deadBurners && Object.keys(state.deadBurners).length) {
+    log(`ℹ️ ${Object.keys(state.deadBurners).length} burner(s) already dead from previous runs.`);
+  }
 
   const usedPairs = new Set();
   for (const p of state.posts) if (p.theme) usedPairs.add(`${p.author}::${p.theme}`);
 
   for (let round = 1; round <= TOTAL_ROUNDS; round++) {
     const roundStart = Date.now();
-    await publishRound(burners, state, round, usedPairs);
+    const ok = await publishRound(burners, state, round, usedPairs);
+    if (!ok) break;
     log(`⏱ Round ${round} took ${formatMs(Date.now() - roundStart)}`);
 
     if (round < TOTAL_ROUNDS) {
@@ -119,7 +173,8 @@ async function main() {
 
   state.completed = true;
   fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2));
-  log(`\nDONE. Posts: ${state.posts.length}`);
+  const deadCount = Object.keys(state.deadBurners || {}).length;
+  log(`\nDONE. Posts: ${state.posts.length}. Dead burners: ${deadCount}.`);
 }
 
 main().catch(err => { log(`ERROR: ${err.message}`); console.error(err); });
