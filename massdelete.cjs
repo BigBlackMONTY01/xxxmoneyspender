@@ -1,8 +1,8 @@
-// massdelete.js
+// massdelete.cjs
 // Usage:
-//   node massdelete.js --dry-run --limit 500      (will prompt for login)
-//   LL_USER=x LL_PASS=y node massdelete.js --limit 500
-//   node massdelete.js --until 2025-06-01
+//   node massdelete.cjs --dry-run --limit 500
+//   node massdelete.cjs --limit 500
+//   node massdelete.cjs --until 2025-06-01
 
 const fs = require('node:fs');
 const path = require('node:path');
@@ -15,32 +15,6 @@ const DELAY_MS = 1500;
 const MAX_RETRIES = 4;
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-
-function askHidden(question) {
-  return new Promise(resolve => {
-    const rl = readline.createInterface({ input: process.stdin, output: process.stdout, terminal: true });
-    const stdin = process.stdin;
-    process.stdout.write(question);
-    const onData = char => {
-      const s = char.toString();
-      if (s === '\n' || s === '\r' || s === '\u0004') {
-        stdin.removeListener('data', onData);
-        rl.close();
-        process.stdout.write('\n');
-        resolve(buffer);
-      } else if (s === '\u0003') {
-        process.exit(1);
-      } else if (s === '\u007f') {
-        if (buffer.length) { buffer = buffer.slice(0, -1); process.stdout.write('\b \b'); }
-      } else {
-        buffer += s;
-        process.stdout.write('*');
-      }
-    };
-    let buffer = '';
-    stdin.on('data', onData);
-  });
-}
 
 function askVisible(question) {
   return new Promise(resolve => {
@@ -58,7 +32,12 @@ function cookieFromSetCookie(headers) {
 async function login(username, password) {
   const res1 = await fetch(`${BASE}/api/auth/login`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json', 'user-agent': 'massdelete/1.0' },
+    headers: {
+      'content-type': 'application/json',
+      'user-agent': 'Mozilla/5.0',
+      'origin': BASE,
+      'referer': `${BASE}/`
+    },
     body: JSON.stringify({ username, password })
   });
   const d1 = await res1.json().catch(() => ({}));
@@ -67,7 +46,12 @@ async function login(username, password) {
     const code = await askVisible('2FA code: ');
     const res2 = await fetch(`${BASE}/api/auth/2fa`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json', 'user-agent': 'massdelete/1.0' },
+      headers: {
+        'content-type': 'application/json',
+        'user-agent': 'Mozilla/5.0',
+        'origin': BASE,
+        'referer': `${BASE}/`
+      },
       body: JSON.stringify({ action: 'login', challenge: d1.challenge, code })
     });
     const d2 = await res2.json().catch(() => ({}));
@@ -85,18 +69,18 @@ async function login(username, password) {
 
 async function fetchMe(cookie) {
   const res = await fetch(`${BASE}/api/auth/me`, {
-    headers: { cookie, accept: 'application/json', 'user-agent': 'massdelete/1.0' }
+    headers: { cookie, accept: 'application/json', 'user-agent': 'Mozilla/5.0' }
   });
   if (!res.ok) return null;
   const d = await res.json().catch(() => ({}));
   return d.user || null;
 }
 
-async function fetchFeed(cookie, uid, cursor) {
-  const params = new URLSearchParams({ of: uid });
+async function fetchFeed(cookie, cursor) {
+  const params = new URLSearchParams({ feed: 'mine' });
   if (cursor) params.set('cursor', cursor);
   const res = await fetch(`${BASE}/api/gist?${params}`, {
-    headers: { cookie, accept: 'application/json', 'user-agent': 'massdelete/1.0' }
+    headers: { cookie, accept: 'application/json', 'user-agent': 'Mozilla/5.0' }
   });
   const data = await res.json().catch(() => ({}));
   return { status: res.status, data };
@@ -112,7 +96,9 @@ async function deletePost(cookie, id) {
           cookie,
           'content-type': 'application/json',
           accept: 'application/json',
-          'user-agent': 'massdelete/1.0'
+          'user-agent': 'Mozilla/5.0',
+          'origin': BASE,
+          'referer': `${BASE}/`
         },
         body: JSON.stringify({ action: 'delete', id })
       });
@@ -133,9 +119,9 @@ async function deletePost(cookie, id) {
   return 'failed';
 }
 
-// EDIT ME if the feed shape differs
-const pickPosts = data => data.posts || data.gist || data.items || data.feed || [];
-const postId = p => String(p.id ?? p.postId ?? p._id);
+const pickPosts = data => data.posts || [];
+const postId = p => String(p.id);
+const postDate = p => p.at || p.createdAt || p.postedAt || p.time;
 
 function loadCheckpoint() {
   try { return JSON.parse(fs.readFileSync(CHECKPOINT, 'utf8')); }
@@ -147,7 +133,7 @@ async function getCredentials() {
   let user = process.env.LL_USER;
   let pass = process.env.LL_PASS;
   if (!user) user = await askVisible('Username: ');
-  if (!pass) pass = await askHidden('Password: ');
+  if (!pass) pass = await askVisible('Password: ');
   if (!user || !pass) throw new Error('username and password required');
   return { user, pass };
 }
@@ -191,7 +177,7 @@ async function main() {
   console.log(dryRun ? 'DRY RUN' : 'LIVE');
 
   while (true) {
-    const { status, data } = await fetchFeed(cookie, me.id, cursor);
+    const { status, data } = await fetchFeed(cookie, cursor);
 
     if (status === 401) {
       console.log('session expired, re-login');
@@ -216,7 +202,7 @@ async function main() {
       if (!id || id === 'undefined') { sCount++; continue; }
       if (deleted.has(id) || gone.has(id)) { sCount++; continue; }
 
-      const created = p.createdAt || p.postedAt || p.time;
+      const created = postDate(p);
       if (until && created && new Date(created) < until) {
         console.log('reached --until, stopping');
         saveCheckpoint({ deleted: [...deleted], gone: [...gone], failed: [...failed], cursor });
@@ -224,7 +210,7 @@ async function main() {
       }
 
       if (dryRun) {
-        console.log(`would delete ${id}  ${created || ''}  ${String(p.body || p.text || '').slice(0, 60)}`);
+        console.log(`would delete ${id}  ${created || ''}  ${String(p.body || '').slice(0, 60)}`);
         dCount++;
         continue;
       }
