@@ -21,22 +21,10 @@ const roundDelay = () => Math.floor(ROUND_DELAY_MIN_MS + Math.random() * (ROUND_
 const formatMs = ms => { const s = Math.round(ms / 1000); return `${Math.floor(s / 60)}m ${s % 60}s`; };
 
 const BROADCAST_MESSAGES = [
-  { tier: 'followers', theme: 'Lagos gist', text: 'Running a Lagos gist page? 1.k followers for ₦5Kay. Fast delivery. DM @Spacetech_.' },
+  { tier: 'followers', theme: 'Lagos gist', text: 'Gistlover in Lagos Life? 🔥🔥 for 3 Thousand, get 1 thousand followers on your gist page.. DM @spacetech_ to order!' },
   { tier: 'script', theme: 'Python Scripts', text: 'Python Scripts 500B per 35 minutes, 12Kay. DM @Spacetech_.' },
-  { tier: 'followers', theme: 'Grow faster', text: 'Looking to grow your page? Get 1.k followers for ₦5Kay. Message @Spacetech_.' },
-  { tier: 'script', theme: 'Lagos Life 1T', text: 'Lagos Life 1Tee account listed at 5.kay. DM @Spacetech_ for details.' },
-  { tier: 'followers', theme: 'Simple deal', text: '1.k followers for just ₦5Kay. DM @Spacetech_.' },
-  { tier: 'script', theme: 'Script package', text: 'Python Scripts available: 500B per 35 minutes for 12Kay. Contact @Spacetech_.' },
-  { tier: 'followers', theme: 'Lagos package', text: 'The Lagos gist package: 1.k followers for ₦5Kay. DM @Spacetech_.' },
-  { tier: 'script', theme: '1Tee availability', text: 'Looking for a Lagos Life 1Tee account? Available for 5.kay. Message @Spacetech_.' },
-  { tier: 'followers', theme: 'Page visibility', text: 'Give your page a visibility boost with 1.k followers for ₦5Kay. DM @Spacetech_.' },
-  { tier: 'script', theme: 'Python offer', text: '500B Python Scripts every 35 minutes, priced at 12Kay. DM @Spacetech_.' },
-  { tier: 'followers', theme: 'Bulk orders', text: 'Need more followers? 1.k starts at ₦5Kay. Ask @Spacetech_ about bulk packages.' },
-  { tier: 'script', theme: 'Selling fast', text: '1Tee for 5.kay, Selling Fast. DM @Spacetech_.' },
-  { tier: 'followers', theme: 'First 1k', text: 'Ready to build your page? Get 1.k followers for ₦5Kay. Contact @Spacetech_.' },
-  { tier: 'script', theme: 'Python Scripts deal', text: 'Get the Python Scripts package: 500B per 35 minutes, 12Kay. DM @Spacetech_.' },
-  { tier: 'followers', theme: 'Quick package', text: 'Your next page-growth package is here. 1.k followers for ₦5Kay. DM @Spacetech_.' },
-  { tier: 'script', theme: 'Lagos Life offer', text: 'Lagos Life 1Tee available for 5.kay. Message @Spacetech_ for information.' }
+  { tier: 'script', theme: 'Lagos Life 1T', text: 'cheapest lagos life cash\!\ mad promo🔥DM @spacetech_ to order now.. 1T-Five thousand/!/ LETS GET THE QUILOX BALLING STARTED.' },
+  { tier: 'followers', theme: 'Simple deal', text: '1.k followers for just 3 Thousand. DM @Spacetech_.' }
 ];
 
 
