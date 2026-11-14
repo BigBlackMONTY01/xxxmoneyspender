@@ -21,22 +21,22 @@ const roundDelay = () => Math.floor(ROUND_DELAY_MIN_MS + Math.random() * (ROUND_
 const formatMs = ms => { const s = Math.round(ms / 1000); return `${Math.floor(s / 60)}m ${s % 60}s`; };
 
 const BROADCAST_MESSAGES = [
-  { tier: 'script', theme: 'Lagos Life 1T', text: 'Lagos Life players: 1Tn in-game account plus money script. ₦6Kay, negotiable. DM @spacetech_.' },
-  { tier: 'script', theme: 'Skip the grind', text: 'Skip the Lagos Life grind. 1Tn in-game cash account plus the script that handles your money. ₦6Kay, negotiable. DM @spacetech_.' },
-  { tier: 'script', theme: 'Start rich', text: 'Start Lagos Life already rich. 1Tn account and money script, ₦6Kay negotiable. Game currency only. DM @spacetech_.' },
-  { tier: 'script', theme: 'Hands-free', text: 'Lagos Life money, hands-free. 1Tn account plus automation script for ₦6Kay, negotiable. DM @spacetech_.' },
-  { tier: 'script', theme: 'Serious players', text: 'For serious Lagos Life players: 1Tee account with script included. ₦6Kay, negotiable. Message @spacetech_ before it goes.' },
-  { tier: 'script', theme: 'Outspend', text: 'Outspend everyone in Lagos Life. 1Tn account plus money script. ₦6Kay, negotiable. DM @spacetech_.' },
-  { tier: 'script', theme: 'More options', text: 'Need more? Bigger Lagos Life balances and other accounts available. 1Tn account plus script from ₦6Kay, negotiable. DM @spacetech_.' },
-  { tier: 'script', theme: 'Ask first', text: 'Questions welcome. Lagos Life 1Tn account plus money script, ₦6Kay negotiable. Ask first, buy after. DM @spacetech_.' },
-  { tier: 'followers', theme: 'Lagos gist', text: 'Running a Lagos gist page? 1.k followers for ₦5Kay. Fast delivery. DM @spacetech_.' },
-  { tier: 'followers', theme: 'Look active', text: 'Make your page look active. 1.k followers, ₦5Kay. Bulk discounts available. DM @spacetech_.' },
-  { tier: 'followers', theme: 'First 1k', text: 'Gist page, blog, or business page: get your first 1.k followers for ₦5Kay. DM @spacetech_ to start.' },
-  { tier: 'followers', theme: 'Simple deal', text: '₦5Kay = 1.k followers. Pay, send your page link, and watch the count move. DM @spacetech_.' },
-  { tier: 'followers', theme: 'Lagos package', text: 'The Lagos gist package: 1.k followers for ₦5Kay. Need more? Ask about bulk. DM @spacetech_.' },
-  { tier: 'followers', theme: 'Grow faster', text: 'Stop waiting on the algorithm. 1.k followers, ₦5Kay, delivered fast. DM @spacetech_.' },
-  { tier: 'followers', theme: 'Ask first', text: 'Questions welcome before you pay. 1.k followers for ₦5Kay. DM @spacetech_.' },
-  { tier: 'followers', theme: 'Bulk', text: 'Bigger page, bigger plan. 1.k followers is ₦5Kay, and bulk orders get a better rate. DM @spacetech_.' }
+  { tier: 'followers', theme: 'Lagos gist', text: 'Running a Lagos gist page? 1.k followers for ₦5Kay. Fast delivery. DM @Spacetech_.' },
+  { tier: 'script', theme: 'Python Scripts', text: 'Python Scripts 500B per 35 minutes, 12Kay. DM @Spacetech_.' },
+  { tier: 'followers', theme: 'Grow faster', text: 'Looking to grow your page? Get 1.k followers for ₦5Kay. Message @Spacetech_.' },
+  { tier: 'script', theme: 'Lagos Life 1T', text: 'Lagos Life 1Tee account listed at 5.kay. DM @Spacetech_ for details.' },
+  { tier: 'followers', theme: 'Simple deal', text: '1.k followers for just ₦5Kay. DM @Spacetech_.' },
+  { tier: 'script', theme: 'Script package', text: 'Python Scripts available: 500B per 35 minutes for 12Kay. Contact @Spacetech_.' },
+  { tier: 'followers', theme: 'Lagos package', text: 'The Lagos gist package: 1.k followers for ₦5Kay. DM @Spacetech_.' },
+  { tier: 'script', theme: '1Tee availability', text: 'Looking for a Lagos Life 1Tee account? Available for 5.kay. Message @Spacetech_.' },
+  { tier: 'followers', theme: 'Page visibility', text: 'Give your page a visibility boost with 1.k followers for ₦5Kay. DM @Spacetech_.' },
+  { tier: 'script', theme: 'Python offer', text: '500B Python Scripts every 35 minutes, priced at 12Kay. DM @Spacetech_.' },
+  { tier: 'followers', theme: 'Bulk orders', text: 'Need more followers? 1.k starts at ₦5Kay. Ask @Spacetech_ about bulk packages.' },
+  { tier: 'script', theme: 'Selling fast', text: '1Tee for 5.kay, Selling Fast. DM @Spacetech_.' },
+  { tier: 'followers', theme: 'First 1k', text: 'Ready to build your page? Get 1.k followers for ₦5Kay. Contact @Spacetech_.' },
+  { tier: 'script', theme: 'Python Scripts deal', text: 'Get the Python Scripts package: 500B per 35 minutes, 12Kay. DM @Spacetech_.' },
+  { tier: 'followers', theme: 'Quick package', text: 'Your next page-growth package is here. 1.k followers for ₦5Kay. DM @Spacetech_.' },
+  { tier: 'script', theme: 'Lagos Life offer', text: 'Lagos Life 1Tee available for 5.kay. Message @Spacetech_ for information.' }
 ];
 
 
