@@ -21,10 +21,10 @@ const roundDelay = () => Math.floor(ROUND_DELAY_MIN_MS + Math.random() * (ROUND_
 const formatMs = ms => { const s = Math.round(ms / 1000); return `${Math.floor(s / 60)}m ${s % 60}s`; };
 
 const BROADCAST_MESSAGES = [
-  { tier: 'followers', theme: 'Lagos gist', text: 'Gistlover in Lagos Life? 🔥🔥 for 3 Thousand, get 1 thousand followers on your gist page.. DM @spacetech_ to order!' },
-  { tier: 'script', theme: 'Python Scripts', text: 'Python Scripts 500B per 35 minutes, 12Kay. DM @Spacetech_.' },
-  { tier: 'script', theme: 'Lagos Life 1T', text: 'cheapest lagos life cash\!\ mad promo🔥DM @spacetech_ to order now.. 1T-Five thousand/!/ LETS GET THE QUILOX BALLING STARTED.' },
-  { tier: 'followers', theme: 'Simple deal', text: '1.k followers for just 3 Thousand. DM @Spacetech_.' }
+  { tier: 'followers', theme: 'Lagos gist', text: 'Gistlover in Lagos Life? 🔥🔥 for 2 Thousand, get 1 thousand followers on your gist page.. DM @spacetech_ to order!' },
+  { tier: 'script', theme: 'Python Scripts', text: 'Python Scripts 500B per 35 minutes, 8 Thousand. DM @Spacetech_.' },
+  { tier: 'script', theme: 'Lagos Life 1T', text: 'cheapest lagos life cash\!\ mad promo🔥 DM @spacetech_ to order now.. 1T-Two thousand/!/ LETS GET THE QUILOX BALLING STARTED.' },
+  { tier: 'followers', theme: 'Simple deal', text: '1.k followers for just 2 Thousand. DM @Spacetech_.' }
 ];
 
 
