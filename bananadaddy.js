@@ -21,10 +21,11 @@ const roundDelay = () => Math.floor(ROUND_DELAY_MIN_MS + Math.random() * (ROUND_
 const formatMs = ms => { const s = Math.round(ms / 1000); return `${Math.floor(s / 60)}m ${s % 60}s`; };
 
 const BROADCAST_MESSAGES = [
-  { tier: 'followers', theme: 'Lagos gist', text: 'Gistlover in Lagos Life? 🔥🔥 for 2 Thousand, get 1 thousand followers on your gist page.. DM @spacetech_ to order!' },
-  { tier: 'script', theme: 'Python Scripts', text: 'Python Scripts 500B per 35 minutes, 8 Thousand. DM @Spacetech_.' },
-  { tier: 'script', theme: 'Lagos Life 1T', text: 'BONANZA, leaving the game\!\ mad promo🔥 DM @spacetech_ to order now.. One (1) Trilly for Two thousand/!/ First 10 people only.' },
-  { tier: 'followers', theme: 'Simple deal', text: '1.k followers for just 2 Thousand. DM @Spacetech_.' }
+  { tier: 'followers', theme: 'The Cartel', text: 'Vote The Cartel @tc_remy69 and secure your share of the 100B. DM to claim your reward! #votewisely #thecartelX' },
+  { tier: 'followers', theme: 'Your Vote, Your Reward', text: 'Your vote comes with benefits! Vote @tc_remy69 and get your share of the 100B. DM now! #thecartelX' },
+  { tier: 'followers', theme: '100B Reward', text: 'Dont miss out! Vote The Cartel and receive your share of the 100B. DM @tc_remy69! #votewisely #thecartelX' },
+  { tier: 'followers', theme: 'Vote Wisely', text: 'The right vote, the right reward. Vote The Cartel @tc_remy69 and DM to receive your share! #thecartelX' },
+  { tier: 'followers', theme: 'Join The Movement', text: 'Make your vote count and your pocket smile. Vote @tc_remy69, The Cartel, and DM to claim your reward! #votewisely #thecartelX' }
 ];
 
 
