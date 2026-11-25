@@ -21,7 +21,6 @@ const roundDelay = () => Math.floor(ROUND_DELAY_MIN_MS + Math.random() * (ROUND_
 const formatMs = ms => { const s = Math.round(ms / 1000); return `${Math.floor(s / 60)}m ${s % 60}s`; };
 
 const BROADCAST_MESSAGES = [
-  { tier: 'followers', theme: 'The Cartel', text: 'Vote The Cartel @tc_remy69 and secure your share of the 100Bn. DM to collect yours! #votewisely #thecartelX' },
   { tier: 'followers', theme: 'Your Vote, Your Reward', text: 'Your vote comes with benefits! Vote @tc_remy69 and get your share of the 100Bn. DM now! #thecartelX' },
   { tier: 'followers', theme: '100Bn Reward', text: 'Dont miss out! Vote The Cartel and receive your share of the 100B. DM @tc_remy69! #votewisely #thecartelX' },
   { tier: 'followers', theme: 'Vote Wisely', text: 'The right vote, the right reward, 100Bn. Vote The Cartel @tc_remy69 and DM to receive your share! #thecartelX' },
